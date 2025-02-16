@@ -1,0 +1,31 @@
+{
+    "entity": {
+        "light": {
+            "effect": {
+                "name": "Effet",
+                "state": {
+                    "strong_white": "Blanc/jaune intense (fort, chaud)",
+                    "candlelight": "Lumière de bougie",
+                    "morning_light": "Lumière du matin (fort, chaud)",
+                    "nature_light": "Lumière naturelle (fort, blanc)",
+                    "snow_light": "Lumière neigeuse (fort, froid)",
+                    "squirrel_light": "Lumière tamisée rouge",
+                    "coffee_light": "Ambiance café (doux, relaxant)",
+                    "desk_light": "Lumière de bureau (forte)",
+                    "hipster": "Lumière hipster (très blanche, forte)",
+                    "yellow_light": "Lumière jaune (doux, chaud)",
+                    "pure_red": "Rouge pur (doux)",
+                    "slow_colors": "Rotation lente de toutes les couleurs lumineuses",
+                    "slow_morning": "Transition douce du jaune (matin)",
+                    "circle": "Cycle fluide sur toutes les couleurs",
+                    "party": "Mode fête (changement rapide des couleurs)",
+                    "romantic": "Couleurs romantiques (dégradé du violet au rouge)",
+                    "smooth_yellow": "Dégradé jaune/rouge",
+                    "blue_wave": "Vague bleue",
+                    "strong_green": "Dégradé vert intense",
+                    "white_yellow": "Alternance blanc/jaune intense"
+                }
+            }
+        }
+    }
+}

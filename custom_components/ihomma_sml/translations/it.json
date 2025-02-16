@@ -1,0 +1,31 @@
+{
+    "entity": {
+        "light": {
+            "effect": {
+                "name": "Effetto",
+                "state": {
+                    "strong_white": "Bianco/giallo intenso (forte, caldo)",
+                    "candlelight": "Luce di candela",
+                    "morning_light": "Luce del mattino (forte, caldo)",
+                    "nature_light": "Luce naturale (forte, bianco)",
+                    "snow_light": "Luce nevosa (forte, freddo)",
+                    "squirrel_light": "Luce rossa soffusa",
+                    "coffee_light": "Atmosfera caffè (morbido, rilassante)",
+                    "desk_light": "Luce da scrivania (forte)",
+                    "hipster": "Luce hipster (molto bianca, forte)",
+                    "yellow_light": "Luce gialla (morbido, caldo)",
+                    "pure_red": "Rosso puro (morbido)",
+                    "slow_colors": "Rotazione lenta di tutti i colori luminosi",
+                    "slow_morning": "Transizione dolce dal giallo (mattino)",
+                    "circle": "Ciclo fluido su tutti i colori",
+                    "party": "Modalità festa (cambio rapido dei colori)",
+                    "romantic": "Colori romantici (sfumatura dal viola al rosso)",
+                    "smooth_yellow": "Sfumatura giallo/rosso",
+                    "blue_wave": "Onda blu",
+                    "strong_green": "Sfumatura verde intensa",
+                    "white_yellow": "Alternanza bianco/giallo intenso"
+                }
+            }
+        }
+    }
+}

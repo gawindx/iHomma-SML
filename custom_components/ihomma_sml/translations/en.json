@@ -1,0 +1,31 @@
+{
+    "entity": {
+        "light": {
+            "effect": {
+                "name": "Effect",
+                "state": {
+                    "strong_white": "Strong white/yellow (strong, warm)",
+                    "candlelight": "Candlelight",
+                    "morning_light": "Morning Light (strong, warm)",
+                    "nature_light": "Nature Light (strong, white)",
+                    "snow_light": "Snow Light (strong, cold)",
+                    "squirrel_light": "Squirrel Light (soft, red)",
+                    "coffee_light": "Coffee Light (soft, chill)",
+                    "desk_light": "Desk Light (strong)",
+                    "hipster": "Hipster food light. (strong, very white)",
+                    "yellow_light": "Yellow light (soft, warm)",
+                    "pure_red": "Pure red (soft)",
+                    "slow_colors": "Slow rotation of all white luminescent colors",
+                    "slow_morning": "Slow rotation from yellow (Morning)",
+                    "circle": "Circle (cycles on all colors smoothly)",
+                    "party": "Party (cycles on all colors less smoothly)",
+                    "romantic": "Romantic colors (Smooth from purple to red)",
+                    "smooth_yellow": "Smooth yellow/red",
+                    "blue_wave": "Blue waves",
+                    "strong_green": "Strong green gradient",
+                    "white_yellow": "Strong white/yellow alternate"
+                }
+            }
+        }
+    }
+}

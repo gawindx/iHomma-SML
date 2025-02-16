@@ -1,0 +1,31 @@
+{
+    "entity": {
+        "light": {
+            "effect": {
+                "name": "Wirkung",
+                "state":{
+                    "strong_white": "Intensives Weiß/Gelb (stark, warm)",
+                    "candlelight": "Kerzenlicht",
+                    "morning_light": "Morgenlicht (stark, warm)",
+                    "nature_light": "Naturlicht (stark, weiß)",
+                    "snow_light": "Schneelicht (stark, kalt)",
+                    "squirrel_light": "Gedämpftes rotes Licht",
+                    "coffee_light": "Kaffee-Atmosphäre (sanft, entspannend)",
+                    "desk_light": "Schreibtischlicht (stark)",
+                    "hipster": "Hipster-Licht (sehr weiß, stark)",
+                    "yellow_light": "Gelbes Licht (sanft, warm)",
+                    "pure_red": "Reines Rot (sanft)",
+                    "slow_colors": "Langsame Rotation aller Leuchtfarben",
+                    "slow_morning": "Sanfter Übergang von Gelb (Morgen)",
+                    "circle": "Flüssiger Zyklus durch alle Farben",
+                    "party": "Party-Modus (schneller Farbwechsel)",
+                    "romantic": "Romantische Farben (Übergang von Violett zu Rot)",
+                    "smooth_yellow": "Gelb/Rot-Verlauf",
+                    "blue_wave": "Blaue Wellen",
+                    "strong_green": "Intensiver Grün-Verlauf",
+                    "white_yellow": "Intensiver Weiß/Gelb-Wechsel"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "iHomma SmartLight",
+  "render_readme": true,
+  "domain": "ihomma-sml",
+  "documentation": "https://github.com/gawindx/iHomma-SML",
+  "issue_tracker": "https://github.com/gawindx/iHomma-SML/issues",
+  "homeassistant": "2024.1.0"
+}

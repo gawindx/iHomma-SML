@@ -1,0 +1,14 @@
+{
+    "domain": "ihomma_sml",
+    "name": "iHomma SmartLight For Home Assistant",
+    "codeowners": ["@gawindx"],
+    "config_flow": false,
+    "dependencies": [],
+    "documentation": "https://github.com/gawindx/ihomma-SML",
+    "integration_type": "device",
+    "iot_class": "assumed_state",
+    "issue_tracker": "https://github.com/gawindx/ihomma-SML/issues",
+    "quality_scale": "custom",
+    "requirements": [],
+    "version": "0.1.0"
+}
