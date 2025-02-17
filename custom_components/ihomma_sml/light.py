@@ -41,15 +41,20 @@ from homeassistant.components.light import (
     PLATFORM_SCHEMA,
 )
 from .ihomma_effects import AVAILABLE_EFFECTS
+from .device import iHommaSML_Device
 
 """Definition of configuration keys"""
 CONF_DEVICE_IP = "device_ip"
+CONF_DEVICES_IP = "devices_ip"
+CONF_IS_GROUP = "is_group"
 
 """Validation scheme for the configuration of the platform"""
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_NAME): cv.string,
-        vol.Required(CONF_DEVICE_IP): cv.string,
+        vol.Exclusive(CONF_DEVICE_IP, "ip"): cv.string,
+        vol.Exclusive(CONF_DEVICES_IP, "ip"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_IS_GROUP, default=False): cv.boolean,
     }
 )
 
@@ -59,29 +64,19 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info = None,  # pylint: disable=unused-argument
 
-):
-    """Configuration of the iHomma SmartLight platform from the 
-    Configuration found in Configuration.yaml"""
+) -> None:
+    """Set up the iHomma light platform."""
+    name = config[CONF_NAME]
+    is_group = config[CONF_IS_GROUP]
 
-    _LOGGER.debug("Calling iHommaSML async_setup_entry config=%s", config)
-
-    """Configuration validation"""
-    try:
-        name = config[CONF_NAME]
+    if is_group:
+        devices_ip = config.get(CONF_DEVICES_IP, [])
+        entity = iHommaSML_GroupEntity(hass, {"name": name, "devices_ip": devices_ip})
+    else:
         device_ip = config[CONF_DEVICE_IP]
-    except vol.Invalid as err:
-        _LOGGER.error("Configuration invalide : %s", err)
-        return False
+        entity = iHommaSML_Entity(hass, {"name": name, "device_ip": device_ip})
 
-    """Creation of the entity with validated parameters"""
-    entity = iHommaSML_Entity(
-        hass,
-        {
-            "name": name,
-            "device_ip": device_ip,
-        }
-    )
-    async_add_entities([entity], True)
+    async_add_entities([entity])
 
 class iHommaSML_Entity(LightEntity, RestoreEntity):
     """Representation of an iHommaSML Light."""
@@ -365,7 +360,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         """Determine Home Assistant's current language"""
         language = self.hass.config.language
         self._translations = await async_get_translations(
-            self.hass, 
+            self._hass, 
             language, 
             integrations = [DOMAIN],
             category = "entity"
@@ -604,3 +599,98 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         result = self.__sendTCPPacket(self._tcp_address, packet)
         _LOGGER.debug("SetPredefinedLight result: %s", result)
         return result
+
+class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
+    """Representation of an iHomma light group."""
+
+    def __init__(self, hass: HomeAssistant, entry_infos: dict) -> None:
+        """Initialize the group."""
+        self._hass = hass
+        self._attr_name = entry_infos.get("name")
+        self._devices_ip = entry_infos.get("devices_ip", [])
+        
+        # Création des dispositifs
+        self._devices = {
+            ip: iHommaSML_Device(ip) for ip in self._devices_ip
+        }
+
+        # Attributs standards
+        self._attr_unique_id = f"ihomma_sml_group_{self._attr_name.replace(' ', '_').lower()}"
+        self._attr_has_entity_name = True
+        
+        # Capacités
+        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
+        self._attr_supported_features = LightEntityFeature.EFFECT
+        
+        # États
+        self._attr_available = False
+        self._attr_state = STATE_OFF
+        self._brightness = 255
+        self._attr_color_temp_kelvin = 4000
+        self._attr_rgb_color = (255, 255, 255)
+        self._attr_effect = None
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to hass."""
+        await super().async_added_to_hass()
+        
+        # Configuration du timer de mise à jour
+        async_track_time_interval(
+            self._hass,
+            self.async_update_group_state,
+            timedelta(seconds=2)
+        )
+
+    async def async_update_group_state(self, *_) -> None:
+        """Update group state from devices."""
+        # Mise à jour des états depuis les appareils
+        _LOGGER.debug("Devices states : %s", 
+                     self._devices.values())
+        _LOGGER.debug("Device state is_on : %s", 
+                     (device.is_on for device in self._devices.values())) 
+        
+        any_on = any(device.is_on for device in self._devices.values())
+        self._attr_state = STATE_ON if any_on else STATE_OFF
+
+        _LOGGER.debug("Group %s state updated to %s", 
+                     self._attr_name, 
+                     "ON" if any_on else "OFF")
+
+    @property
+    def brightness(self) -> int | None:
+        """Return the brightness of the group."""
+        return self._brightness
+
+    @property
+    def color_temp_kelvin(self) -> int | None:
+        """Return the color temperature of the group."""
+        return self._attr_color_temp_kelvin
+
+    @property
+    def rgb_color(self) -> tuple[int, int, int] | None:
+        """Return the RGB color of the group."""
+        return self._attr_rgb_color
+
+    @property
+    def effect(self) -> str | None:
+        """Return the current effect of the group."""
+        return self._attr_effect
+
+    def turn_on(self, **kwargs) -> None:
+        """Turn on all lights in the group."""
+        for device in self._devices.values():
+            if ATTR_BRIGHTNESS in kwargs:
+                device.set_brightness(kwargs[ATTR_BRIGHTNESS])
+            if ATTR_COLOR_TEMP_KELVIN in kwargs:
+                device.set_temperature(kwargs[ATTR_COLOR_TEMP_KELVIN])
+            if ATTR_RGB_COLOR in kwargs:
+                device.set_color(kwargs[ATTR_RGB_COLOR])
+            if ATTR_EFFECT in kwargs:
+                device.set_effect(kwargs[ATTR_EFFECT])
+
+    def turn_off(self, **kwargs) -> None:
+        """Turn off all lights in the group."""
+        for device in self._devices.values():
+            device.turn_off()
+        self._attr_state = STATE_OFF
+        self.update_state()

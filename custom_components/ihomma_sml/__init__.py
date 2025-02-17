@@ -7,26 +7,31 @@ from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
-from .const import DOMAIN, PLATFORMS, _LOGGER
+from .const import DOMAIN, PLATFORMS, CONF_DEVICES_IP, CONF_IS_GROUP, _LOGGER
 
 """Definition of global configuration scheme"""
-#CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
-        # Si vous avez besoin de configuration globale, ajoutez-la ici
+        vol.Optional(CONF_IS_GROUP, default=False): cv.boolean,
+        vol.Optional(CONF_DEVICES_IP): vol.All(
+            cv.ensure_list, 
+            [cv.string],
+            vol.Length(min=1, msg="Au moins une IP est requise pour un groupe")
+        ),
     })
 }, extra=vol.ALLOW_EXTRA)
 
-async def async_setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Configuration of the iHomma Smartlight integration."""
     if DOMAIN in config:
+        conf = config.get(DOMAIN, {})
         _LOGGER.info(
-            "Initializing %s integration with plaforms: %s with config: %s",
+            "Initializing %s integration with platforms: %s with config: %s",
             DOMAIN,
             PLATFORMS,
-            config.get(DOMAIN),
+            conf,
         )
-        hass.data[DOMAIN] = config[DOMAIN]
+        hass.data[DOMAIN] = conf
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

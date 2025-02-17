@@ -27,5 +27,15 @@
                 }
             }
         }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "devices_ip": "IP addresses of bulbs (for group)",
+                    "is_group": "Is a group of bulbs"
+                }
+            }
+        }
     }
 }

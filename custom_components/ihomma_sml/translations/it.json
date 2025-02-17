@@ -27,5 +27,15 @@
                 }
             }
         }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "devices_ip": "Indirizzi IP bulb (per gruppo)",
+                    "is_group": "È un gruppo di lampadine"
+                }
+            }
+        }
     }
 }

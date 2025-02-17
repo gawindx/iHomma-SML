@@ -27,5 +27,15 @@
                 }
             }
         }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "devices_ip": "Adresses IP des ampoules (pour groupe)",
+                    "is_group": "Est un groupe d'ampoules"
+                }
+            }
+        }
     }
 }

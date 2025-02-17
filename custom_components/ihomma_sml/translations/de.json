@@ -27,5 +27,15 @@
                 }
             }
         }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "devices_ip": "Bulb-IP-Adressen (für Gruppe)",
+                    "is_group": "Ist eine Gruppe von Glühbirnen"
+                }
+            }
+        }
     }
 }
