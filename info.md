@@ -9,11 +9,15 @@ Personalized integration for Home Assistant to control the compatible bulbs iHom
 
 This integration makes it possible to connect and control the bulbs compatible with the iHommaHCS application directly from Home Assistant. It supports the following features:
 
--ON/OFF control
--Luminosity adjustment
--Color temperature change (2700K-6500K)
--RGB colors
--predefined light effects
+## FUNCTIONS
+- Individual bulbs control
+- Grouping of bulbs
+- Brightness management
+- RGB color control
+- Color temperature
+- Light effects
+- State restoration after restart
+- Group/bulb synchronization
 
 ## Prérequis
 
@@ -52,13 +56,35 @@ Before you can use the bulbs with Home Assistant, you must connect them to your 
 -Once paired, note the IP address assigned to the bulb, it will be necessary for the configuration
 
 ## Configuration
-
-Add to your `configuration.yaml`
-
+### Configuration YAML basique
 ```yaml
-ihomma-sml:
-
 light:
-  - platform: ihomma-sml
-    name: iHommaSML Light
-    device_ip: 192.168.1.XXX
+# Individual bulb
+
+  - platform: ihomma_sml
+    name: "Living room bulb"
+    device_ip: "192.168.1.100"
+
+# Bulb group
+
+  - platform: ihomma_sml
+    name: "Living Room group"
+    is_group: true
+    devices_ip:
+      - "192.168.1.100"
+      - "192.168.1.101"
+```
+
+### Configuration Options
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| name | String | Yes | Entity name |
+| device_ip | String | For single bulb | Bulb's IP address |
+| devices_ip | List | For group | List of IP addresses for group bulbs |
+| is_group | Boolean | No | Define if it's a group (default: false) |
+
+### Usage Notes
+
+- A bulb can be controlled both individually and as part of a group
+- States are synchronized between groups and individual bulbs

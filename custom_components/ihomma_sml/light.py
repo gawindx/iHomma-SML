@@ -2,6 +2,7 @@
 
 import logging
 import socket
+from typing import Dict, List, Any
 from enum import Enum, IntEnum
 from time import sleep
 from datetime import timedelta
@@ -15,8 +16,12 @@ from .const import (
     TCP_PORT,
     PACKET_SIZES,
     DEBUG_NETWORK,
-    _LOGGER,
+    CONF_DEVICE_IP,
+    CONF_DEVICES_IP,
+    CONF_IS_GROUP
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 from homeassistant.const import CONF_NAME
 from homeassistant.const import STATE_ON, STATE_OFF
@@ -41,15 +46,19 @@ from homeassistant.components.light import (
     PLATFORM_SCHEMA,
 )
 from .ihomma_effects import AVAILABLE_EFFECTS
+from .device import iHommaSML_Device
+from .state_manager import StateManager
 
-"""Definition of configuration keys"""
-CONF_DEVICE_IP = "device_ip"
-
-"""Validation scheme for the configuration of the platform"""
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_NAME): cv.string,
-        vol.Required(CONF_DEVICE_IP): cv.string,
+        vol.Exclusive(CONF_DEVICE_IP, 'ip'): cv.string,
+        vol.Exclusive(CONF_DEVICES_IP, 'ip'): vol.All(
+            cv.ensure_list,
+            [cv.string],
+            vol.Length(min=1, msg="Au moins une IP est requise pour un groupe")
+        ),
+        vol.Optional(CONF_IS_GROUP, default=False): cv.boolean,
     }
 )
 
@@ -57,89 +66,81 @@ async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
     async_add_entities: AddEntitiesCallback,
-    discovery_info = None,  # pylint: disable=unused-argument
+    discovery_info = None,
+) -> None:
+    """Configuration de la plateforme."""
+    name = config[CONF_NAME]
+    is_group = config.get(CONF_IS_GROUP, False)
 
-):
-    """Configuration of the iHomma SmartLight platform from the 
-    Configuration found in Configuration.yaml"""
+    if is_group:
+        devices_ip = config.get(CONF_DEVICES_IP)
+        if not devices_ip:
+            _LOGGER.error("Un groupe doit avoir au moins une IP d'ampoule")
+            return
 
-    _LOGGER.debug("Calling iHommaSML async_setup_entry config=%s", config)
+        entity = iHommaSML_GroupEntity(
+            hass,
+            {
+                "name": name,
+                "devices_ip": devices_ip,
+            }
+        )
+    else:
+        device_ip = config.get(CONF_DEVICE_IP)
+        _LOGGER.debug(
+            "Async Setting up light platform with name: %s, ip: %s, is_group: %s",
+            name,
+            device_ip,
+            is_group)
+        if not device_ip:
+            _LOGGER.error("Une ampoule unique doit avoir une IP")
+            return
 
-    """Configuration validation"""
-    try:
-        name = config[CONF_NAME]
-        device_ip = config[CONF_DEVICE_IP]
-    except vol.Invalid as err:
-        _LOGGER.error("Configuration invalide : %s", err)
-        return False
+        entity = iHommaSML_Entity(
+            hass,
+            {
+                "name": name,
+                "device_ip": device_ip,
+            }
+        )
 
-    """Creation of the entity with validated parameters"""
-    entity = iHommaSML_Entity(
-        hass,
-        {
-            "name": name,
-            "device_ip": device_ip,
-        }
-    )
-    async_add_entities([entity], True)
+    async_add_entities([entity])
 
 class iHommaSML_Entity(LightEntity, RestoreEntity):
     """Representation of an iHommaSML Light."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry_infos: dict,
-    ) -> None:
-
-        """Initialization of our entity"""
-        self._attr_name = entry_infos.get("name")
-        self._device_ip = entry_infos.get("device_ip")
-        self._udp_address = (self._device_ip, UDP_PORT)
-        self._tcp_address = (self._device_ip, TCP_PORT)
-
+    def __init__(self, hass: HomeAssistant, entry_infos: dict) -> None:
+        """Initialize the entity."""
         self._hass = hass
+        self._attr_name = entry_infos.get("name")
+        
+        # Création du device sous-jacent pour la communication
+        self._device = iHommaSML_Device(entry_infos.get("device_ip"))
+
+        # Attributs Home Assistant
         self._attr_has_entity_name = True
         self._translations = {}
-        self._attr_online_values = {}
+        self._attr_unique_id = f"ihomma_sml_{self._attr_name.replace(' ', '_').lower()}"
 
-        """Initial Attributes"""
-        """The lamp is considered to be unavailable at the start"""
+        # Capacités
+        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
+        self._attr_supported_features = LightEntityFeature.EFFECT
+
+        # États initiaux
         self._attr_available = False
         self._attr_state = STATE_UNAVAILABLE
         self._was_unavailable = True
-
-        """Kelvin color temperature range and default value"""
-        self._attr_min_color_temp_kelvin = 2700  # Hot
-        self._attr_max_color_temp_kelvin = 6500  # Cold
-        self._attr_color_temp_kelvin = 4000  # Default temperature (neutral)
-
-        """Brightness"""
+        
+        # Valeurs par défaut
         self._brightness = 255
+        self._attr_min_color_temp_kelvin = 2700
+        self._attr_max_color_temp_kelvin = 6500
+        self._attr_color_temp_kelvin = 4000
+        self._attr_rgb_color = (255, 255, 255)
+        self._attr_color_mode = ColorMode.RGB
+        self._attr_effect = None
 
-        """Initialize the light's default values for RGB mode"""
-        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
-        self._attr_rgb_color = (255, 255, 255)  # White by default
-        self._attr_color_mode = ColorMode.RGB # Default RGB Color mode
-
-        """Initialize the effects"""
-        """Effects supported by the bulb"""
-        self._attr_supported_features = LightEntityFeature.EFFECT
-        self._attr_effect = None  # No start-up effects
-
-        """Create a unique ID based on the IP address of the device"""
-        self._attr_unique_id = f"ihomma_sml_{self._attr_name.replace(' ', '_').lower()}"
-
-        """Add the device information"""
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, self._attr_unique_id)},
-            "name": self._attr_name,
-            "manufacturer": "iHomma",
-            "model": "SmartLight",
-            "via_device": (DOMAIN, self._device_ip),
-        }
-
-        """Initial save state of the light"""
+        # Sauvegarde des états
         self._saved_states = {
             "state": self._attr_state,
             "brightness": self._brightness,
@@ -148,19 +149,74 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             "rgb_color": self._attr_rgb_color
         }
 
-        """Create a reusable UDP socket"""
-        self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self._udp_socket.settimeout(0.75)
+        # Informations du dispositif
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, self._attr_unique_id)},
+            "name": self._attr_name,
+            "manufacturer": "iHomma",
+            "model": "SmartLight",
+            "via_device": (DOMAIN, self._device.device_ip),
+        }
 
         _LOGGER.info("Initializing iHommaSML Light entity %s with unique_id %s", 
-                    entry_infos.get("name"), 
+                    self._attr_name, 
                     self._attr_unique_id)
 
-        _LOGGER.info("Initializing iHommaSML Light entity %s", entry_infos.get("name"))
-        _LOGGER.debug("iHommaSML Light Initialised with:")
-        _LOGGER.debug("Name: %s", self._attr_name)
-        _LOGGER.debug("Device IP: %s", self._device_ip)
+        self._update_interval = timedelta(seconds=2)  # Intervalle par défaut
+        self._timer_cancel = None  # Pour stocker la fonction d'annulation
+
+        self._state_manager = StateManager()
+
+        # Properties
+
+    @property
+    def should_poll(self) -> bool:
+        """No polling needed."""
+        return False
+
+    @property
+    def name(self) -> str:
+        """Return the display name of this light."""
+        return self._attr_name
+
+    @property
+    def brightness(self) -> int | None:
+        """Return the brightness of the light."""
+        return self._brightness
+
+    @property
+    def color_temp_kelvin(self) -> int | None:
+        """Return the CT color value in kelvin."""
+        return self._attr_color_temp_kelvin if self._attr_color_mode == ColorMode.COLOR_TEMP else None
+
+    @property
+    def rgb_color(self) -> tuple[int, int, int] | None:
+        """Return the RGB color value."""
+        return self._attr_rgb_color if self._attr_color_mode == ColorMode.RGB else None
+
+    @property
+    def effect_list(self):
+        """Return the list of supported effects."""
+        return [
+            self._translations.get(effect.description_key, effect.id)
+            for effect in AVAILABLE_EFFECTS.values()
+        ]
+
+    @property
+    def effect(self) -> str | None:
+        """Return the current effect."""
+        return self._attr_effect
+
+    @property
+    def icon(self) -> str:
+        """Return the icon to use in the frontend."""
+        return "mdi:lightbulb"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if light is on."""
+
+        return self._attr_state == STATE_ON if self._attr_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE) else False
 
     def update_state(self):
         """Synchronous state update
@@ -170,80 +226,90 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
 
         self._hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
-    @property
-    def should_poll(self) -> bool:
-        """Do not poll for those entities"""
+    @callback
+    async def async_added_to_hass(self) -> None:
+        """Called when entity is added to HA."""
+        _LOGGER.info("Adding light %s to Home Assistant", self._attr_name)
+        
+        await super().async_added_to_hass()
+        
+        """Restoration of the last known state"""
+        if (last_state := await self.async_get_last_state()) is not None:
+            self._attr_state = last_state.state
+            self._brightness = last_state.attributes.get("brightness", 255)
+            self._attr_effect = last_state.attributes.get("effect", None)
+            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
+            self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
+        self.__backup_online_states()
 
-        return False
+        """Configuration of the update timer"""
+        self._timer_cancel = async_track_time_interval(
+            self._hass,
+            self.async_get_light_states,
+            interval=self._update_interval,
+        )
+        """Disarm the timer when the entity is destroyed"""
+        self.async_on_remove(self._timer_cancel)
 
-    @property
-    def icon(self) -> str | None:
-        """Return the icon to use in the frontend, if any."""
+        # Chargement des traductions
+        _LOGGER.debug("Get translations for light %s", self._translations)
+        self._translations = await async_get_translations(
+            self.hass, 
+            self.hass.config.language,
+            integrations=[DOMAIN],
+            category="entity"
+        )
 
-        return "mdi:lightbulb"
+        self._state_manager.register_light(
+            self._device.device_ip, 
+            self._handle_state_update
+        )
 
-    @property
-    def name(self) -> str:
-        """Return the display name of this light."""
+        """Update state after entity loading"""
+        self.async_write_ha_state()
 
-        return self._attr_name
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up when entity is removed."""
+        self._state_manager.unregister_light(
+            self._device.device_ip, 
+            self._handle_state_update
+        )
 
-    @property
-    def state(self) -> str:
-        """Return the state of the light."""
+    def _handle_state_update(self, state: Dict[str, Any]) -> None:
+        """Handle state updates from other entities."""
+        self._attr_state = state["state"]
+        self._brightness = state["brightness"]
+        self._attr_color_temp_kelvin = state["color_temp"]
+        self._attr_rgb_color = state["rgb_color"]
+        self._attr_effect = state["effect"]
+        self.update_state()
 
-        return self._attr_state
+    async def async_get_light_states(self, *_) -> None:
+        """Vérification périodique de l'état."""
+        self._attr_available = self._device.available
+        
+        if not self._attr_available:
+            self._attr_state = STATE_UNAVAILABLE
+            self._was_unavailable = True
+            # Augmente l'intervalle si indisponible
+            if self._update_interval.total_seconds() < 10:
+                self.__update_timer_interval(10)  # Passe à 10 secondes
+        else:
+            if self._update_interval.total_seconds() > 2:
+                self.__update_timer_interval(2)  # Retourne à 2 secondes
+            await self.async_update()
+            self.__backup_online_states()
 
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if light is on."""
+        self.async_write_ha_state()
 
-        return self._attr_state == STATE_ON if self._attr_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE) else False
-
-    @property
-    def brightness(self) -> int | None:
-        """Return the brightness of this light between 0..255."""
-
-        return self._brightness if self._brightness is not None else 0
-
-    @property
-    def color_temp_kelvin(self) -> int | None:
-        """Return the CT color value in kelvin."""
-
-        #return self._attr_color_temp_kelvin if self._attr_color_mode == colormode.color_temp sinon aucun
-        return self._attr_color_temp_kelvin
-
-    @property
-    def rgb_color(self) -> tuple[int, int, int] | None:
-        """Return the RGB color value."""
-
-        #return self._attr_rgb_color si self._attr_color_mode == colormode.rgb else nul
-        return self._attr_rgb_color
-
-    @property
-    def effect(self) -> str | None:
-        """Return the current effect of the light."""
-
-        return self._attr_effect
-
-    @property
-    def effect_list(self):
-        """Return the list of supported effects."""
-        _LOGGER.debug("Getting effect list for light %s", self._attr_name)
-
-        return [
-            self._translations.get(effect.description_key, effect.id)
-            for effect in AVAILABLE_EFFECTS.values()
-        ]
-
-    async def async_update(self):
+    async def async_update(self) -> None:
         """Update the state of the entity and manage unavailability."""
         _LOGGER.info("Updating light %s status", self._attr_name)
         _LOGGER.debug("Light %s was Last %s and now is %s",
                    self.name, 
                    ("unavailable" if self._was_unavailable else "available"), 
                    ("available" if self._attr_available else "unavailable"))
-
+        
         if self._was_unavailable and self._attr_available:
             """The entity becomes available after being unavailable"""
             _LOGGER.debug("Light %s is now available", self.name)
@@ -254,9 +320,8 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             _LOGGER.debug("Light %s Restoring Last State with Effect: %s", self._attr_effect)
             _LOGGER.debug("Light %s Restoring Last State with Temp: %s", self._attr_color_temp_kelvin)
             _LOGGER.debug("Light %s Restoring Last State with RGB: %s", self._attr_rgb_color)
-
+            
             if (self._attr_state == STATE_ON if self._attr_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE) else False):
-                _LOGGER.debug("Light %s Restoring ON with last values of brightness/Color/Effect/Warm", self.name)
                 kwargs = {}
                 if self._brightness is not None:
                     kwargs[ATTR_BRIGHTNESS] = self._brightness
@@ -270,146 +335,64 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             else:
                 _LOGGER.debug("Light %s nedd to be off (state_off/unavailable/unknow", self.name)
                 self.turn_off()
+
         """Store if the entity is unavailable to detect when it comes back online"""
         self._was_unavailable = not self._attr_available
 
     def turn_on(self, **kwargs) -> None:
-        """Instruct the light to turn on."""
-        _LOGGER.info("Requets to turn on %s", self._attr_name)
-        _LOGGER.debug("Turn on kwargs for %s: %s", self._attr_name, kwargs)
-
-        self._attr_color_mode = ColorMode.RGBW
+        """Turn the light on."""
+        _LOGGER.debug("Turn on light %s with params: %s", self._attr_name, kwargs)
+        
+        self._attr_color_mode = ColorMode.RGB
         if not (self._attr_state in [STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN]):
-            result = self.__turnOnOff(True)
-            self._attr_state = STATE_ON
+            if self._device.turn_on():
+                self._attr_state = STATE_ON
 
-        """Light parameters management"""
-        if ATTR_BRIGHTNESS in kwargs:
-            self._brightness = kwargs[ATTR_BRIGHTNESS]  # Updates the brightness
+                """Light parameters management"""
+                if ATTR_BRIGHTNESS in kwargs:
+                    brightness = kwargs[ATTR_BRIGHTNESS]
+                    if self._device.set_brightness(brightness):
+                        self._brightness = brightness
 
-            self.__SetLuminance(self._brightness)
-            _LOGGER.debug("Requets to turn on %s with brightness %s", self._attr_name, self._brightness)
+                """Check if a color temperature is passed"""
+                if ATTR_COLOR_TEMP_KELVIN in kwargs:
+                    temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
+                    if self._attr_min_color_temp_kelvin <= temp <= self._attr_max_color_temp_kelvin:
+                        if self._device.set_temperature(temp):
+                            self._attr_color_temp_kelvin = temp
+                            self._attr_color_mode = ColorMode.COLOR_TEMP
 
-        """Effects management"""
-        if ATTR_EFFECT in kwargs:
-            effect_str = kwargs[ATTR_EFFECT]  # Home Assistant returns the name translated
+                """Check if an RGB color is passed"""
+                if ATTR_RGB_COLOR in kwargs:
+                    rgb = kwargs[ATTR_RGB_COLOR]
+                    if self._device.set_color(rgb):
+                        self._attr_rgb_color = rgb
+                        self._attr_color_mode = ColorMode.RGB
 
-            effect = next(
-                (effect for effect in AVAILABLE_EFFECTS.values()
-                 if self._translations.get(effect.description_key, effect.id) == effect_str),
-                None
-            )
-            """ self._attr_effect = effect_str """
-            _LOGGER.debug("Selected Effect: %s of %s", effect_str, self.effect_list)
-
-            if effect is not None:
-                _LOGGER.debug("Selected Effect: %s", effect_str)
-                self._attr_effect = effect_str
-                self._attr_color_mode = ColorMode.RGB
-
-                _LOGGER.debug("Selected Effect Key: %s of %s (%s)", effect_str, effect.id, effect.instruction)
-                self.__SetPredefinedLight(effect.instruction)
-            else:
-                _LOGGER.debug("Effect %s is not valid, disabling effects", effect_str)
-        else:
-            self._attr_effect = None  # Disabling effects
-
-        """Check if a color temperature is passed"""
-        if ATTR_COLOR_TEMP_KELVIN in kwargs:
-            temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
-            if self._attr_min_color_temp_kelvin <= temp <= self._attr_max_color_temp_kelvin:
-                self._attr_color_mode = ColorMode.COLOR_TEMP
-                self._attr_color_temp_kelvin = temp
-                self.__SetWarmth(self._attr_color_temp_kelvin)
-
-        """Check if an RGB color is passed"""
-        if ATTR_RGB_COLOR in kwargs:
-            self._attr_rgb_color = kwargs[ATTR_RGB_COLOR]
-            _LOGGER.debug("Requets to turn on %s with Color %s with type: %s", self._attr_name, self._attr_rgb_color, type(self._attr_rgb_color))
-            self.__SetColor(list(self._attr_rgb_color))
+                """Effects management"""
+                if ATTR_EFFECT in kwargs:
+                    effect_str = kwargs[ATTR_EFFECT]
+                    effect = next(
+                        (effect for effect in AVAILABLE_EFFECTS.values()
+                        if self._translations.get(effect.description_key, effect.id) == effect_str),
+                        None
+                    )
+                    _LOGGER.debug("Selected Effect: %s of %s", effect_str, self.effect_list)
+                    if effect and self._device.set_effect(effect.instruction, effect_str):
+                        self._attr_effect = effect_str
+                        self._attr_color_mode = ColorMode.RGB
 
         self.update_state()
 
     def turn_off(self, **kwargs) -> None:
-        """Instruct the light to turn off."""
+        """Turn the light off."""
         _LOGGER.info("Turning off light %s", self._attr_name)
+        if self._device.turn_off():
+            self._attr_state = STATE_OFF
+            self.update_state()
 
-        result = self.__turnOnOff()
-        self._attr_state = STATE_OFF
-        _LOGGER.debug("Requets result: %s", result)
-        self.update_state()
-
-    @callback
-    async def async_added_to_hass(self):
-        """This callback is called when the entity is added to HA """
-        _LOGGER.info("Adding light %s to Home Assistant", self._attr_name)
-
-        await super().async_added_to_hass()
-        if (last_state := await self.async_get_last_state()) is not None:
-            self._attr_state = last_state.state
-            self._brightness = last_state.attributes.get("brightness", 255)
-            self._attr_effect = last_state.attributes.get("effect", None)
-            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
-            self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
-        self.__backup_online_states()
-
-        """Arm the timer"""
-        timer_cancel = async_track_time_interval(
-            self._hass,
-            self.async_get_light_states,
-            interval = timedelta(seconds=2),
-        )
-        """Disarm the timer when the entity is destroyed"""
-        self.async_on_remove(timer_cancel)
-
-        """Determine Home Assistant's current language"""
-        language = self.hass.config.language
-        self._translations = await async_get_translations(
-            self.hass, 
-            language, 
-            integrations = [DOMAIN],
-            category = "entity"
-        )
-        _LOGGER.debug("Get translations for light %s", self._translations)
-
-        """Update state after entity loading"""
-        self.async_write_ha_state()
-
-    async def async_get_light_states(self, *_):
-        """Check the lamp state every 2 seconds and update Home Assistant."""
-        _LOGGER.debug("Checking status for light %s", self._attr_name)
-
-        self._attr_available = self.__get_avaibility()
-        
-        """Determine the correct state based on availability and lamp state"""
-        if not self._attr_available:
-            self._attr_state = STATE_UNAVAILABLE
-            self._was_unavailable = True
-        else:
-            await self.async_update()
-            self.__backup_online_states()
-
-        """Log the lamp state"""
-        state_msg = "On" if self._attr_state == STATE_ON else "Off" if self._attr_state == STATE_OFF else "Unavailable"
-        _LOGGER.debug("iHommaSML Light (%s, %s) status is: %s", 
-                     self._attr_name, self._device_ip, state_msg)
-
-        """Save the updated state"""
-        self.async_write_ha_state()
-
-    """Begin of private methods"""
-
-    def __get_avaibility(self) -> bool:
-        """Check if the light is available"""
-        _LOGGER.debug("Checking availability for light %s", self._attr_name)
-        
-        watchdog = self.__sendUDPPacket(self._udp_address, "HLK")
-        return watchdog is not None
-
-    def __backup_online_states(self):
-        """Save the light's online states"""
-        _LOGGER.debug("Backing up online states for light %s", self._attr_name)
-
+    def __backup_online_states(self) -> None:
+        """Save the light's online states."""
         self._saved_states.update({
             'state': self._attr_state,
             'brightness': self._brightness,
@@ -418,189 +401,324 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             'rgb_color': self._attr_rgb_color
         })
 
-    def __restore_online_states(self):
-        """Restore the light's online states"""
-        _LOGGER.debug("Restoring online states for light %s", self._attr_name)
-
+    def __restore_online_states(self) -> None:
+        """Restore the light's online states."""
         self._attr_state = self._saved_states["state"]
         self._brightness = self._saved_states["brightness"]
         self._attr_effect = self._saved_states["effect"]
         self._attr_color_temp_kelvin = self._saved_states["color_temp_kelvin"]
         self._attr_rgb_color = self._saved_states["rgb_color"]
 
-    """ 
-        The following methods are based on the work of Jeremiah aka 'lp1dev'
-        https://github.com/lp1dev/OpeniHomma-Client/tree/master
-    """
-    def __parseMessage(self, message):
-        """Converts a message to bytes if necessary"""
-        _LOGGER.debug("Parsing message: %s", message)
+    def __update_timer_interval(self, new_interval: int) -> None:
+        """Met à jour l'intervalle du timer."""
+        if self._timer_cancel:
+            self._timer_cancel()  # Annule le timer existant
+            
+        self._update_interval = timedelta(new_interval)
+        self._timer_cancel = async_track_time_interval(
+            self._hass,
+            self.async_get_light_states,
+            interval=self._update_interval,
+        )
+        _LOGGER.debug(
+            "Light %s: Update interval changed to %d seconds",
+            self.name,
+            new_interval
+        )
 
-        if type(message) == bytes:
-            return message
+class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
+    """Représentation d'un groupe d'ampoules iHomma."""
+
+    def __init__(self, hass: HomeAssistant, entry_infos: dict) -> None:
+        """Initialize the group."""
+        self._hass = hass
+        self._attr_name = entry_infos.get("name")
+        self._devices_ip = entry_infos.get("devices_ip", [])
+        
+        # Création des dispositifs
+        self._devices = {
+            ip: iHommaSML_Device(ip) for ip in self._devices_ip
+        }
+
+        # Attributs Home Assistant
+        self._attr_has_entity_name = True
+        self._translations = {}
+        self._attr_unique_id = f"ihomma_sml_group_{self._attr_name.replace(' ', '_').lower()}"
+        
+        # Capacités
+        self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
+        self._attr_supported_features = LightEntityFeature.EFFECT
+
+        # États initiaux
+        self._attr_available = False
+        self._attr_state = STATE_UNAVAILABLE
+        self._was_unavailable = True
+        
+        # Valeurs par défaut
+        self._brightness = 255
+        self._attr_min_color_temp_kelvin = 2700
+        self._attr_max_color_temp_kelvin = 6500
+        self._attr_color_temp_kelvin = 4000
+        self._attr_rgb_color = (255, 255, 255)
+        self._attr_color_mode = ColorMode.RGB
+        self._attr_effect = None
+
+        # Sauvegarde des états pour la restauration
+        self._saved_states = {
+            "state": self._attr_state,
+            "brightness": self._brightness,
+            "effect": self._attr_effect,
+            "color_temp_kelvin": self._attr_color_temp_kelvin,
+            "rgb_color": self._attr_rgb_color
+        }
+
+        # Informations du dispositif
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, self._attr_unique_id)},
+            "name": self._attr_name,
+            "manufacturer": "iHomma",
+            "model": "SmartLight Group",
+            "via_device": (DOMAIN, "group"),
+        }
+
+        _LOGGER.info(
+            "Initializing iHommaSML Group %s with %d devices: %s",
+            self._attr_name,
+            len(self._devices),
+            self._devices_ip
+        )
+
+    @property
+    def should_poll(self) -> bool:
+        """No polling needed."""
+        return False
+
+    @property
+    def name(self) -> str:
+        """Return the display name of this light."""
+        return self._attr_name
+
+    @property
+    def brightness(self) -> int | None:
+        """Return the brightness of the group."""
+        return self._brightness
+
+    @property
+    def color_temp_kelvin(self) -> int | None:
+        """Return the CT color value in kelvin."""
+        return self._attr_color_temp_kelvin if self._attr_color_mode == ColorMode.COLOR_TEMP else None
+
+    @property
+    def rgb_color(self) -> tuple[int, int, int] | None:
+        """Return the RGB color value."""
+        return self._attr_rgb_color if self._attr_color_mode == ColorMode.RGB else None
+
+    @property
+    def effect_list(self):
+        """Return the list of supported effects."""
+        return [
+            self._translations.get(effect.description_key, effect.id)
+            for effect in AVAILABLE_EFFECTS.values()
+        ]
+
+    @property
+    def effect(self) -> str | None:
+        """Return the current effect."""
+        return self._attr_effect
+
+    @property
+    def icon(self) -> str:
+        """Return the icon to use in the frontend."""
+        return "mdi:lightbulb-group"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if light is on."""
+
+        return self._attr_state == STATE_ON if self._attr_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE) else False
+
+    @callback
+    async def async_added_to_hass(self) -> None:
+        """Called when entity is added to HA."""
+        _LOGGER.info("Adding group %s to Home Assistant", self._attr_name)
+        
+        await super().async_added_to_hass()
+        
+        """Restoration of the last known state"""
+        if (last_state := await self.async_get_last_state()) is not None:
+            self._attr_state = last_state.state
+            self._brightness = last_state.attributes.get("brightness", 255)
+            self._attr_effect = last_state.attributes.get("effect", None)
+            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
+            self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
+        self.__backup_online_states()
+
+        """Configuration of the update timer"""
+        timer_cancel = async_track_time_interval(
+            self._hass,
+            self.async_get_light_states,
+            interval=timedelta(seconds=2),
+        )
+        """Disarm the timer when the entity is destroyed"""
+        self.async_on_remove(timer_cancel)
+
+        """Loading of translations"""
+        self._translations = await async_get_translations(
+            self.hass,
+            self.hass.config.language,
+            integrations=[DOMAIN],
+            category="entity"
+        )
+        _LOGGER.debug("Get translations for light %s", self._translations)
+
+        """Update state after entity loading"""
+        self.async_write_ha_state()
+
+    async def async_get_light_states(self, *_) -> None:
+        """Mise à jour périodique des états."""
+        _LOGGER.debug("Updating states for group %s", self._attr_name)
+        
+        available_devices = []
+        on_devices = []
+
+        for ip, device in self._devices.items():
+            device_state = device.get_state()
+            _LOGGER.debug("Retrieving states for group %s: %s", self._attr_name, device_state)
+            if device_state["available"]:
+                available_devices.append(ip)
+                if device_state["state"] == STATE_ON:
+                    on_devices.append(ip)
+            self._attr_available = len(available_devices) > 0
+        if not self._attr_available:
+            self._attr_state = STATE_UNAVAILABLE
+            self._was_unavailable = True
+            _LOGGER.warning("Group %s is unavailable - No devices responding", self._attr_name)
         else:
-            return message.encode()
+            if self._was_unavailable:
+                _LOGGER.info("Group %s is now available - Restoring states", self._attr_name)
+                self.__restore_online_states()
+                # Appliquer les états restaurés
+                if self.is_on:
+                    kwargs = {}
+                    if self._brightness is not None:
+                        kwargs[ATTR_BRIGHTNESS] = self._brightness
+                    if self._attr_color_temp_kelvin is not None:
+                        kwargs[ATTR_COLOR_TEMP_KELVIN] = self._attr_color_temp_kelvin
+                    if self._attr_rgb_color is not None:
+                        kwargs[ATTR_RGB_COLOR] = self._attr_rgb_color
+                    if self._attr_effect is not None:
+                        kwargs[ATTR_EFFECT] = self._attr_effect
+                    await self.async_turn_on(**kwargs)
+            else:
+                self._attr_state = STATE_ON if on_devices else STATE_OFF
+                self.__backup_online_states()
 
-    def __sendUDPPacket(self, address, message, wait_response=True):
-        """Sends a UDP message to the specified address"""
-        _LOGGER.debug("Sending UDP packet to %s:%s", address[0], address[1])
+            _LOGGER.debug(
+                "Group %s: %d/%d devices available, %d devices on",
+                self._attr_name,
+                len(available_devices),
+                len(self._devices),
+                len(on_devices)
+            )
 
-        packet = self.__parseMessage(message)
-        if DEBUG_NETWORK:
-            _LOGGER.debug("UDP target IP: %s", address)
-            _LOGGER.debug("UDP target port: %s", UDP_PORT)
-            _LOGGER.debug("message string: %s", message)
-            _LOGGER.debug("message bytes: %s", packet)
+        self._was_unavailable = not self._attr_available
+        self.update_state()
 
-        sent = self._udp_socket.sendto(packet, address)
-        if wait_response:
-            try:
-                return self._udp_socket.recvfrom(2048)
-            except Exception as e:
-                _LOGGER.debug("Exception in __sendUDPPacket: %s", e)
-                return None
-        return sent
+    def update_state(self):
+        """Synchronous state update
+        Force Home Assistant to be executed async_write_ha_state 
+        In the event loop"""
+        _LOGGER.debug("Updating state for light %s", self._attr_name)
 
-    def __sendTCPPacket(self, address, message, wait_response=False):
-        """Sends a TCP message to the specified address"""
-        _LOGGER.debug("Sending TCP packet to %s:%s", address[0], address[1])
+        self._hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
-        packet = self.__parseMessage(message)
-        if DEBUG_NETWORK:
-            _LOGGER.debug("TCP target IP: %s", address[0])
-            _LOGGER.debug("TCP target Port: %s", address[1])
-            try:
-                _LOGGER.debug("Message string: %s", packet.decode())
-            except Exception as e:
-                _LOGGER.debug("Exception in __sendTCPPacket: %s", e)
-                pass
-            _LOGGER.debug("Message bytes: %s", packet)
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        sock.connect(address)
-        response = sock.send(packet)
-        if wait_response:
-            try:
-                response = sock.recv(1024)
-                return [hex(byte) for byte in response]
-            except Exception as e:
-                _LOGGER.debug("Exception in __sendTCPPacket: %s", e)
-                return None
-        _LOGGER.debug("__sendTCPPacket response: %s", response)
-        return response
-
-    def __getLampJSONData(self):
-        """Get the light's JSON data"""
-        _LOGGER.debug("Getting JSON data for light %s", self._attr_name)
-
-        packet = self.__ForgeInstruction(0x2e, 0, [0xff])
-        _LOGGER.debug("__getLampJSONData Packet: %s", packet)
-        return self.__sendTCPPacket(self._tcp_address, packet)
-
-    def __ForgeInstruction(self, instruction, write_switch, data, final_byte=0):
-        """Forge an instruction packet for the light"""
-        _LOGGER.debug("Forging instruction: 0x%x with data %s", instruction, data)
-
-        header = [0xfe, 0xef]
-        message_length = len(data) + 1 + 1 + 1 + (1 if final_byte else 0)# données + instruction + write_switch + last_byte
-
-        packet = header + [message_length, instruction, write_switch] + data
-        packet_size = final_byte
-        last_byte = 0
-        for byte in packet:
-            packet_size += byte
-        for size in PACKET_SIZES:
-            if size >= packet_size:
-                last_byte = size - packet_size + (1 if final_byte else 0)
-                _LOGGER.debug("Last byte: %s | Size: %s", last_byte, size)
-                if last_byte > 255:
+    def turn_on(self, **kwargs) -> None:
+        """Turn on all lights in group."""
+        _LOGGER.info("Turning on group %s with parameters: %s", self._attr_name, kwargs)
+        
+        success = True
+        for ip, device in self._devices.items():
+            _LOGGER.debug("Verify Device is_on : %s", device.is_on)
+            if not device.is_on == STATE_ON:
+                _LOGGER.debug("Device Turning On")
+                if not device.turn_on():
+                    success = False
+                    _LOGGER.warning("Failed to turn on device %s in group %s", ip, self._attr_name)
                     continue
-                packet.append(last_byte)
-                if final_byte:
-                    packet.append(final_byte)
-                _LOGGER.debug("Last byte: %s | Packet Size: %s", last_byte, packet_size + last_byte)
-                _LOGGER.debug("Packet bytes: %s", packet)
-                return bytes(packet)
-        packet[2] -= 1
-        packet.append(final_byte)
-        _LOGGER.debug("Final Packet bytes: %s", packet)
-        return bytes(packet)
 
-    def __ConvertBrightness(self, value):
-        """Convert a value from scale [0, 255] to [0, 200]."""
+            """Light parameters management"""
+            if ATTR_BRIGHTNESS in kwargs:
+                brightness = kwargs[ATTR_BRIGHTNESS]
+                if device.set_brightness(brightness):
+                    self._brightness = brightness
+                else:
+                    _LOGGER.warning("Failed to set brightness for device %s", ip)
 
-        """Ensure value is between 0 and 255"""
-        value = max(0, min(255, value))
+            """Check if a color temperature is passed"""
+            if ATTR_COLOR_TEMP_KELVIN in kwargs:
+                temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
+                if self._attr_min_color_temp_kelvin <= temp <= self._attr_max_color_temp_kelvin:
+                    if device.set_temperature(temp):
+                        self._attr_color_temp_kelvin = temp
+                        self._attr_color_mode = ColorMode.COLOR_TEMP
+                    else:
+                        _LOGGER.warning("Failed to set temperature for device %s", ip)
 
-        converted = int(value * (200 / 255))
-        _LOGGER.debug("Converting brightness from %s to %s", value, converted)
-        return converted
+            """Check if an RGB color is passed"""
+            if ATTR_RGB_COLOR in kwargs:
+                rgb = kwargs[ATTR_RGB_COLOR]
+                if device.set_color(rgb):
+                    self._attr_rgb_color = rgb
+                    self._attr_color_mode = ColorMode.RGB
+                else:
+                    _LOGGER.warning("Failed to set color for device %s", ip)
 
-    def __ConvertTempKelvin(self, value):
-        """Convert a value from scale [2700, 6500] to [0, 200]."""
+            """Effects management"""
+            if ATTR_EFFECT in kwargs:
+                effect_str = kwargs[ATTR_EFFECT]
+                effect = next(
+                    (effect for effect in AVAILABLE_EFFECTS.values()
+                     if self._translations.get(effect.description_key, effect.id) == effect_str),
+                    None
+                )
+                if effect and device.set_effect(effect.instruction, effect_str):
+                    self._attr_effect = effect_str
+                    self._attr_color_mode = ColorMode.RGB
+                else:
+                    _LOGGER.warning("Failed to set effect for device %s", ip)
 
-        """Ensure value is between 2700 and 6500"""
-        value = max(self._attr_min_color_temp_kelvin, 
-                    min(self._attr_max_color_temp_kelvin, value))
+        if success:
+            self._attr_state = STATE_ON
+            self.update_state()
 
-        converted = (200 - int((value - self._attr_min_color_temp_kelvin) * 200 / (self._attr_max_color_temp_kelvin - self._attr_min_color_temp_kelvin)))
-        _LOGGER.debug("Converting temperature from %sK to %s", value, converted)
-        return converted
-    
-    def __turnOnOff(self, on = False):
-        """Turn the light on or off"""
-        _LOGGER.info("Turning light %s %s", self._attr_name, "on" if on else "off")
-        _LOGGER.debug("Execute turnOnOff: %s", "TurnOn" if on else "TurnOff")
+    def turn_off(self, **kwargs) -> None:
+        """Turn off all lights in group."""
+        _LOGGER.info("Turning off group %s", self._attr_name)
+        
+        success = True
+        for ip, device in self._devices.items():
+            if not device.turn_off():
+                success = False
+                _LOGGER.warning("Failed to turn off device %s in group %s", ip, self._attr_name)
 
-        value = 17 if on else 18
-        packet = self.__ForgeInstruction(0xa3, 1, [value])
-        result = self.__sendTCPPacket(self._tcp_address, packet)
-        _LOGGER.debug("TurnOnOff result: %s", result)
-        return result
+        if success:
+            self._attr_state = STATE_OFF
+            self.update_state()
 
-    def __SetLuminance(self, value):
-        """Set the light's brightness"""
-        _LOGGER.info("Setting brightness to %s for light %s", value, self._attr_name)
-        _LOGGER.debug("setBrightness : %s", value)
+    def __backup_online_states(self) -> None:
+        """Sauvegarde des états en ligne."""
+        self._saved_states.update({
+            'state': self._attr_state,
+            'brightness': self._brightness,
+            'effect': self._attr_effect,
+            'color_temp_kelvin': self._attr_color_temp_kelvin,
+            'rgb_color': self._attr_rgb_color
+        })
 
-        converted = self.__ConvertBrightness(value)
-        packet = self.__ForgeInstruction(0xa7, 1, [converted])
-        result = self.__sendTCPPacket(self._tcp_address, packet)
-        _LOGGER.debug("SetLuminance result: %s", result)
-        return result
-
-    def __SetWarmth(self, value):
-        """Set the light's color temperature"""
-        _LOGGER.info("Setting color temperature to %sK for light %s", value, self._attr_name)
-        _LOGGER.debug("setWarmth : %s°K", value)
-
-        converted = self.__ConvertTempKelvin(value)
-        packet = self.__ForgeInstruction(0xa1, 1, [converted], 94)
-        result = self.__sendTCPPacket(self._tcp_address, packet)
-        _LOGGER.debug("SetWarmth result: %s", result)
-        return result
-
-    def __SetColor(self, value):
-        """Set the light's RGB color"""
-        _LOGGER.info("Setting RGB color to %s for light %s", value, self._attr_name)
-        _LOGGER.debug("setColor : %s", value)
-
-        final_byte = 0
-        if (value == [255, 0, 0]) or (value == [0, 255, 0]) or (value == [0, 0, 255]):
-            final_byte = 94
-            _LOGGER.debug("Using final byte 94 for primary color")
-        packet = self.__ForgeInstruction(0xa1, 1, value, final_byte)
-        result = self.__sendTCPPacket(self._tcp_address, packet)
-        _LOGGER.debug("SetColor result: %s", result)
-        return result
-
-    def __SetPredefinedLight(self, effect):
-        """Set the light's effect"""
-        _LOGGER.info("Setting effect %s for light %s", effect, self._attr_name)
-        _LOGGER.debug("Set Effect Light: %s ", effect)
-
-        packet = self.__ForgeInstruction(0xa5, 1, [effect])
-        result = self.__sendTCPPacket(self._tcp_address, packet)
-        _LOGGER.debug("SetPredefinedLight result: %s", result)
-        return result
+    def __restore_online_states(self) -> None:
+        """Restauration des états en ligne."""
+        self._attr_state = self._saved_states["state"]
+        self._brightness = self._saved_states["brightness"]
+        self._attr_effect = self._saved_states["effect"]
+        self._attr_color_temp_kelvin = self._saved_states["color_temp_kelvin"]
+        self._attr_rgb_color = self._saved_states["rgb_color"]
