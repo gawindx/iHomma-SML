@@ -1,27 +1,9 @@
 """Platform for iHomma SmartLight integration."""
 
 import logging
-import socket
-from typing import Dict, List, Any
-from enum import Enum, IntEnum
-from time import sleep
+from typing import Dict, Any
 from datetime import timedelta
 import voluptuous as vol
-
-from .const import (
-    DOMAIN, 
-    PLATFORMS,
-    UDP_IP,
-    UDP_PORT,
-    TCP_PORT,
-    PACKET_SIZES,
-    DEBUG_NETWORK,
-    CONF_DEVICE_IP,
-    CONF_DEVICES_IP,
-    CONF_IS_GROUP
-)
-
-_LOGGER = logging.getLogger(__name__)
 
 from homeassistant.const import CONF_NAME
 from homeassistant.const import STATE_ON, STATE_OFF
@@ -45,9 +27,23 @@ from homeassistant.components.light import (
     LightEntityFeature,
     PLATFORM_SCHEMA,
 )
+
 from .ihomma_effects import AVAILABLE_EFFECTS
 from .device import iHommaSML_Device
 from .state_manager import StateManager
+from .const import (
+    DOMAIN, 
+    CONF_DEVICE_IP,
+    CONF_DEVICES_IP,
+    CONF_IS_GROUP,
+    BASE_BRIGHTNESS,
+    BASE_COLOR_K,
+    BASE_COLOR_RGB,
+    TEMP_COLOR_MAX_K,
+    TEMP_COLOR_MIN_K,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -132,11 +128,9 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         self._was_unavailable = True
         
         # Valeurs par défaut
-        self._brightness = 255
-        self._attr_min_color_temp_kelvin = 2700
-        self._attr_max_color_temp_kelvin = 6500
-        self._attr_color_temp_kelvin = 4000
-        self._attr_rgb_color = (255, 255, 255)
+        self._brightness = BASE_BRIGHTNESS
+        self._attr_color_temp_kelvin = BASE_COLOR_K
+        self._attr_rgb_color = BASE_COLOR_RGB
         self._attr_color_mode = ColorMode.RGB
         self._attr_effect = None
 
@@ -162,12 +156,10 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
                     self._attr_name, 
                     self._attr_unique_id)
 
-        self._update_interval = timedelta(seconds=2)  # Intervalle par défaut
+        self._update_interval = timedelta(seconds=10)  # Intervalle par défaut
         self._timer_cancel = None  # Pour stocker la fonction d'annulation
 
         self._state_manager = StateManager()
-
-        # Properties
 
     @property
     def should_poll(self) -> bool:
@@ -285,24 +277,15 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         self.update_state()
 
     async def async_get_light_states(self, *_) -> None:
-        """Vérification périodique de l'état."""
-        self._attr_available = self._device.available
-        
-        if not self._attr_available:
-            self._attr_state = STATE_UNAVAILABLE
-            self._was_unavailable = True
-            # Augmente l'intervalle si indisponible
-            if self._update_interval.total_seconds() < 10:
-                self.__update_timer_interval(10)  # Passe à 10 secondes
-        else:
-            if self._update_interval.total_seconds() > 2:
-                self.__update_timer_interval(2)  # Retourne à 2 secondes
-            await self.async_update()
-            self.__backup_online_states()
+        """Mise à jour périodique de l'état."""
+        _LOGGER.debug("Updating states for light %s", self._attr_name)
+        device_state = self._device.get_state()
+        _LOGGER.debug("Retrieving states for light %s: %s", self._attr_name, device_state)
+        if device_state["available"]:
+            self._attr_available = True
+            if device_state["state"] == STATE_ON:
+                self._attr_state = STATE_ON
 
-        self.async_write_ha_state()
-
-    async def async_update(self) -> None:
         """Update the state of the entity and manage unavailability."""
         _LOGGER.info("Updating light %s status", self._attr_name)
         _LOGGER.debug("Light %s was Last %s and now is %s",
@@ -338,6 +321,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
 
         """Store if the entity is unavailable to detect when it comes back online"""
         self._was_unavailable = not self._attr_available
+        self.update_state()
 
     def turn_on(self, **kwargs) -> None:
         """Turn the light on."""
@@ -357,7 +341,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
                 """Check if a color temperature is passed"""
                 if ATTR_COLOR_TEMP_KELVIN in kwargs:
                     temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
-                    if self._attr_min_color_temp_kelvin <= temp <= self._attr_max_color_temp_kelvin:
+                    if TEMP_COLOR_MIN_K <= temp <= TEMP_COLOR_MAX_K:
                         if self._device.set_temperature(temp):
                             self._attr_color_temp_kelvin = temp
                             self._attr_color_mode = ColorMode.COLOR_TEMP
@@ -455,11 +439,9 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         self._was_unavailable = True
         
         # Valeurs par défaut
-        self._brightness = 255
-        self._attr_min_color_temp_kelvin = 2700
-        self._attr_max_color_temp_kelvin = 6500
-        self._attr_color_temp_kelvin = 4000
-        self._attr_rgb_color = (255, 255, 255)
+        self._brightness = BASE_BRIGHTNESS
+        self._attr_color_temp_kelvin = BASE_COLOR_K
+        self._attr_rgb_color = BASE_COLOR_RGB
         self._attr_color_mode = ColorMode.RGB
         self._attr_effect = None
 
@@ -557,7 +539,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         timer_cancel = async_track_time_interval(
             self._hass,
             self.async_get_light_states,
-            interval=timedelta(seconds=2),
+            interval=timedelta(seconds=10),
         )
         """Disarm the timer when the entity is destroyed"""
         self.async_on_remove(timer_cancel)
@@ -657,7 +639,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
             """Check if a color temperature is passed"""
             if ATTR_COLOR_TEMP_KELVIN in kwargs:
                 temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
-                if self._attr_min_color_temp_kelvin <= temp <= self._attr_max_color_temp_kelvin:
+                if TEMP_COLOR_MIN_K <= temp <= TEMP_COLOR_MAX_K:
                     if device.set_temperature(temp):
                         self._attr_color_temp_kelvin = temp
                         self._attr_color_mode = ColorMode.COLOR_TEMP

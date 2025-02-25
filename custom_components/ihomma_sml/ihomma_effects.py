@@ -1,7 +1,6 @@
 """Effects management for iHomma SmartLight."""
 from dataclasses import dataclass
-from enum import IntEnum
-from typing import Dict, List
+from typing import Dict
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
 

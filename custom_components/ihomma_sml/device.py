@@ -5,13 +5,19 @@ from typing import Dict, Any, Optional
 
 from homeassistant.const import STATE_ON, STATE_OFF
 
-from .const import (
-    UDP_PORT,
-    TCP_PORT,
-    PACKET_SIZES,
-    DEBUG_NETWORK,
-)
 from .state_manager import StateManager
+from .const import (
+    DEBUG_NETWORK,
+    PACKET_SIZES,
+    TCP_PORT,
+    UDP_PORT,
+    UDP_TIMEOUT,
+    BASE_BRIGHTNESS,
+    BASE_COLOR_K,
+    BASE_COLOR_RGB,
+    TEMP_COLOR_MAX_K,
+    TEMP_COLOR_MIN_K,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,19 +31,16 @@ class iHommaSML_Device:
         self._tcp_address = (device_ip, TCP_PORT)
         self._available = False
         self._state = False
-        self._brightness = 255
-        self._color_temp = 4000
+        self._brightness = BASE_BRIGHTNESS
+        self._color_temp = BASE_COLOR_K
         self._effect = None
-        self._attr_min_color_temp_kelvin = 2700
-        self._attr_max_color_temp_kelvin = 6500
-        self._rgb_color = (255, 255, 255)
-        self._last_command_success = False  # Nouvel attribut pour suivre le succès des commandes
+        self._rgb_color = BASE_COLOR_RGB
         self._state_manager = StateManager()
 
         # Création du socket UDP réutilisable
         self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self._udp_socket.settimeout(0.75)
+        self._udp_socket.settimeout(UDP_TIMEOUT)
 
     @property
     def device_ip(self) -> str:
@@ -47,8 +50,6 @@ class iHommaSML_Device:
     @property
     def available(self) -> bool:
         """Return if device is available."""
-        _LOGGER.debug("Checking availability for light %s", self._device_ip)
-        self._available = self.__sendUDPPacket(self._udp_address, "HLK") is not None
         return self._available
 
     @property
@@ -61,7 +62,6 @@ class iHommaSML_Device:
         _LOGGER.debug("Parsing message: %s", message)
 
         try:
-            # Décodage JSON si nécessaire
             if isinstance(message, bytes):
                 return message
             else:
@@ -80,12 +80,18 @@ class iHommaSML_Device:
         try:
             result = self._udp_socket.sendto(packet, address)
             if wait_response:
-                result = self._udp_socket.recvfrom(2048)
+                result, _ = self._udp_socket.recvfrom(2048)
         except Exception as err:
             _LOGGER.error("UDP communication error with %s: %s", self._device_ip, err)
             result = None
         finally:
-            self._last_command_success = result is not None
+            self._available = result is not None and ("HLK_" in str(result))
+            _LOGGER.debug(
+                "Device %s response: %s, available: %s", 
+                self._device_ip, 
+                result, 
+                self._available
+            )
             return result
 
     def __sendTCPPacket(self, address: tuple, message: bytes, wait_response:bool = False) -> Optional[dict]:
@@ -162,7 +168,7 @@ class iHommaSML_Device:
         
         watchdog = self.__sendUDPPacket(self._udp_address, "HLK")
         return {
-            "available": watchdog is not None,  # Basé sur la dernière commande
+            "available": watchdog is not None,
             "state": STATE_ON if self._state else STATE_OFF,
             "brightness": self._brightness,
             "color_temp": self._color_temp,
@@ -231,10 +237,10 @@ class iHommaSML_Device:
         """Convert a value from scale [2700, 6500] to [0, 200]."""
 
         """Ensure value is between 2700 and 6500"""
-        value = max(self._attr_min_color_temp_kelvin, 
-                    min(self._attr_max_color_temp_kelvin, value))
+        value = max(TEMP_COLOR_MIN_K, 
+                    min(TEMP_COLOR_MAX_K, value))
 
-        converted = (200 - int((value - self._attr_min_color_temp_kelvin) * 200 / (self._attr_max_color_temp_kelvin - self._attr_min_color_temp_kelvin)))
+        converted = (200 - int((value - TEMP_COLOR_MIN_K) * 200 / (TEMP_COLOR_MAX_K - TEMP_COLOR_MIN_K)))
         _LOGGER.debug("Converting temperature from %sK to %s", value, converted)
         return converted
 
