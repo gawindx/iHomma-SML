@@ -32,7 +32,7 @@ from .ihomma_effects import AVAILABLE_EFFECTS
 from .device import iHommaSML_Device
 from .state_manager import StateManager
 from .const import (
-    DOMAIN, 
+    DOMAIN,
     CONF_DEVICE_IP,
     CONF_DEVICES_IP,
     CONF_IS_GROUP,
@@ -52,7 +52,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Exclusive(CONF_DEVICES_IP, 'ip'): vol.All(
             cv.ensure_list,
             [cv.string],
-            vol.Length(min=1, msg="Au moins une IP est requise pour un groupe")
+            vol.Length(min=1, msg="At least one IP is required for a group")
         ),
         vol.Optional(CONF_IS_GROUP, default=False): cv.boolean,
     }
@@ -64,14 +64,14 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info = None,
 ) -> None:
-    """Configuration de la plateforme."""
+    """Configuration of the platform."""
     name = config[CONF_NAME]
     is_group = config.get(CONF_IS_GROUP, False)
 
     if is_group:
         devices_ip = config.get(CONF_DEVICES_IP)
         if not devices_ip:
-            _LOGGER.error("Un groupe doit avoir au moins une IP d'ampoule")
+            _LOGGER.error("A group must have at least one bulb IP")
             return
 
         entity = iHommaSML_GroupEntity(
@@ -89,7 +89,7 @@ async def async_setup_platform(
             device_ip,
             is_group)
         if not device_ip:
-            _LOGGER.error("Une ampoule unique doit avoir une IP")
+            _LOGGER.error("A unique bulb must have an IP")
             return
 
         entity = iHommaSML_Entity(
@@ -109,32 +109,32 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         """Initialize the entity."""
         self._hass = hass
         self._attr_name = entry_infos.get("name")
-        
-        # Création du device sous-jacent pour la communication
+
+        """Creation of the underlying device for communication"""
         self._device = iHommaSML_Device(entry_infos.get("device_ip"))
 
-        # Attributs Home Assistant
+        """Home Assistant attributes"""
         self._attr_has_entity_name = True
         self._translations = {}
         self._attr_unique_id = f"ihomma_sml_{self._attr_name.replace(' ', '_').lower()}"
 
-        # Capacités
+        """Capacities"""
         self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
         self._attr_supported_features = LightEntityFeature.EFFECT
 
-        # États initiaux
+        """Initial states"""
         self._attr_available = False
         self._attr_state = STATE_UNAVAILABLE
         self._was_unavailable = True
-        
-        # Valeurs par défaut
+
+        """Default values"""
         self._brightness = BASE_BRIGHTNESS
         self._attr_color_temp_kelvin = BASE_COLOR_K
         self._attr_rgb_color = BASE_COLOR_RGB
         self._attr_color_mode = ColorMode.RGB
         self._attr_effect = None
 
-        # Sauvegarde des états
+        """Backup States"""
         self._saved_states = {
             "state": self._attr_state,
             "brightness": self._brightness,
@@ -143,7 +143,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             "rgb_color": self._attr_rgb_color
         }
 
-        # Informations du dispositif
+        """Entity information"""
         self._attr_device_info = {
             "identifiers": {(DOMAIN, self._attr_unique_id)},
             "name": self._attr_name,
@@ -152,12 +152,12 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             "via_device": (DOMAIN, self._device.device_ip),
         }
 
-        _LOGGER.info("Initializing iHommaSML Light entity %s with unique_id %s", 
-                    self._attr_name, 
+        _LOGGER.info("Initializing iHommaSML Light entity %s with unique_id %s",
+                    self._attr_name,
                     self._attr_unique_id)
 
-        self._update_interval = timedelta(seconds=10)  # Intervalle par défaut
-        self._timer_cancel = None  # Pour stocker la fonction d'annulation
+        self._update_interval = timedelta(seconds=10)  # Default interval
+        self._timer_cancel = None  # To store the cancellation function
 
         self._state_manager = StateManager()
 
@@ -180,6 +180,16 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
     def color_temp_kelvin(self) -> int | None:
         """Return the CT color value in kelvin."""
         return self._attr_color_temp_kelvin if self._attr_color_mode == ColorMode.COLOR_TEMP else None
+
+    @property
+    def min_color_temp_kelvin(self) -> int:
+        """Returns the minimum color temperature in Kelvin."""
+        return TEMP_COLOR_MIN_K
+
+    @property
+    def max_color_temp_kelvin(self) -> int:
+        """Returns the maximum color temperature in Kelvin."""
+        return TEMP_COLOR_MAX_K
 
     @property
     def rgb_color(self) -> tuple[int, int, int] | None:
@@ -212,7 +222,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
 
     def update_state(self):
         """Synchronous state update
-        Force Home Assistant to be executed async_write_ha_state 
+        Force Home Assistant to be executed async_write_ha_state
         In the event loop"""
         _LOGGER.debug("Updating state for light %s", self._attr_name)
 
@@ -222,9 +232,9 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Called when entity is added to HA."""
         _LOGGER.info("Adding light %s to Home Assistant", self._attr_name)
-        
+
         await super().async_added_to_hass()
-        
+
         """Restoration of the last known state"""
         if (last_state := await self.async_get_last_state()) is not None:
             self._attr_state = last_state.state
@@ -243,17 +253,17 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         """Disarm the timer when the entity is destroyed"""
         self.async_on_remove(self._timer_cancel)
 
-        # Chargement des traductions
+        """Loading of translations"""
         _LOGGER.debug("Get translations for light %s", self._translations)
         self._translations = await async_get_translations(
-            self.hass, 
+            self.hass,
             self.hass.config.language,
             integrations=[DOMAIN],
             category="entity"
         )
 
         self._state_manager.register_light(
-            self._device.device_ip, 
+            self._device.device_ip,
             self._handle_state_update
         )
 
@@ -263,7 +273,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is removed."""
         self._state_manager.unregister_light(
-            self._device.device_ip, 
+            self._device.device_ip,
             self._handle_state_update
         )
 
@@ -277,7 +287,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         self.update_state()
 
     async def async_get_light_states(self, *_) -> None:
-        """Mise à jour périodique de l'état."""
+        """Periodic state update."""
         _LOGGER.debug("Updating states for light %s", self._attr_name)
         device_state = self._device.get_state()
         _LOGGER.debug("Retrieving states for light %s: %s", self._attr_name, device_state)
@@ -289,21 +299,21 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         """Update the state of the entity and manage unavailability."""
         _LOGGER.info("Updating light %s status", self._attr_name)
         _LOGGER.debug("Light %s was Last %s and now is %s",
-                   self.name, 
-                   ("unavailable" if self._was_unavailable else "available"), 
+                   self.name,
+                   ("unavailable" if self._was_unavailable else "available"),
                    ("available" if self._attr_available else "unavailable"))
-        
+
         if self._was_unavailable and self._attr_available:
             """The entity becomes available after being unavailable"""
             _LOGGER.debug("Light %s is now available", self.name)
             self.__restore_online_states()
             _LOGGER.info("Light %s is Restoring Last State", self.name)
             _LOGGER.debug("Light %s Restoring Last State with State: %s", self._attr_state)
-            _LOGGER.debug("Light %s Restoring Last State with Brigthness: %s", self._brightness)
+            _LOGGER.debug("Light %s Restoring Last State with Brightness: %s", self._brightness)
             _LOGGER.debug("Light %s Restoring Last State with Effect: %s", self._attr_effect)
             _LOGGER.debug("Light %s Restoring Last State with Temp: %s", self._attr_color_temp_kelvin)
             _LOGGER.debug("Light %s Restoring Last State with RGB: %s", self._attr_rgb_color)
-            
+
             if (self._attr_state == STATE_ON if self._attr_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE) else False):
                 kwargs = {}
                 if self._brightness is not None:
@@ -316,7 +326,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
                     kwargs[ATTR_EFFECT] = self._attr_effect
                 self.turn_on(**kwargs)
             else:
-                _LOGGER.debug("Light %s nedd to be off (state_off/unavailable/unknow", self.name)
+                _LOGGER.debug("Light %s need to be off (state_off/unavailable/unknown", self.name)
                 self.turn_off()
 
         """Store if the entity is unavailable to detect when it comes back online"""
@@ -326,7 +336,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
     def turn_on(self, **kwargs) -> None:
         """Turn the light on."""
         _LOGGER.debug("Turn on light %s with params: %s", self._attr_name, kwargs)
-        
+
         self._attr_color_mode = ColorMode.RGB
         if not (self._attr_state in [STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN]):
             if self._device.turn_on():
@@ -394,10 +404,10 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         self._attr_rgb_color = self._saved_states["rgb_color"]
 
     def __update_timer_interval(self, new_interval: int) -> None:
-        """Met à jour l'intervalle du timer."""
+        """Updates the timer interval."""
         if self._timer_cancel:
-            self._timer_cancel()  # Annule le timer existant
-            
+            self._timer_cancel()  # Cancels the existing timer
+
         self._update_interval = timedelta(new_interval)
         self._timer_cancel = async_track_time_interval(
             self._hass,
@@ -411,41 +421,41 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         )
 
 class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
-    """Représentation d'un groupe d'ampoules iHomma."""
+    """Representation of a group of iHomma bulbs."""
 
     def __init__(self, hass: HomeAssistant, entry_infos: dict) -> None:
         """Initialize the group."""
         self._hass = hass
         self._attr_name = entry_infos.get("name")
         self._devices_ip = entry_infos.get("devices_ip", [])
-        
-        # Création des dispositifs
+
+        """Creation of devices"""
         self._devices = {
             ip: iHommaSML_Device(ip) for ip in self._devices_ip
         }
 
-        # Attributs Home Assistant
+        """Home Assistant attributes"""
         self._attr_has_entity_name = True
         self._translations = {}
         self._attr_unique_id = f"ihomma_sml_group_{self._attr_name.replace(' ', '_').lower()}"
-        
-        # Capacités
+
+        """Capacities"""
         self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
         self._attr_supported_features = LightEntityFeature.EFFECT
 
-        # États initiaux
+        """Initial states"""
         self._attr_available = False
         self._attr_state = STATE_UNAVAILABLE
         self._was_unavailable = True
-        
-        # Valeurs par défaut
+
+        """Default values"""
         self._brightness = BASE_BRIGHTNESS
         self._attr_color_temp_kelvin = BASE_COLOR_K
         self._attr_rgb_color = BASE_COLOR_RGB
         self._attr_color_mode = ColorMode.RGB
         self._attr_effect = None
 
-        # Sauvegarde des états pour la restauration
+        """"Backup States"""
         self._saved_states = {
             "state": self._attr_state,
             "brightness": self._brightness,
@@ -454,7 +464,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
             "rgb_color": self._attr_rgb_color
         }
 
-        # Informations du dispositif
+        """Entity information"""
         self._attr_device_info = {
             "identifiers": {(DOMAIN, self._attr_unique_id)},
             "name": self._attr_name,
@@ -491,6 +501,16 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         return self._attr_color_temp_kelvin if self._attr_color_mode == ColorMode.COLOR_TEMP else None
 
     @property
+    def min_color_temp_kelvin(self) -> int:
+        """Returns the minimum color temperature in Kelvin."""
+        return TEMP_COLOR_MIN_K
+
+    @property
+    def max_color_temp_kelvin(self) -> int:
+        """Returns the maximum color temperature in Kelvin."""
+        return TEMP_COLOR_MAX_K
+
+    @property
     def rgb_color(self) -> tuple[int, int, int] | None:
         """Return the RGB color value."""
         return self._attr_rgb_color if self._attr_color_mode == ColorMode.RGB else None
@@ -523,9 +543,9 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Called when entity is added to HA."""
         _LOGGER.info("Adding group %s to Home Assistant", self._attr_name)
-        
+
         await super().async_added_to_hass()
-        
+
         """Restoration of the last known state"""
         if (last_state := await self.async_get_last_state()) is not None:
             self._attr_state = last_state.state
@@ -557,9 +577,9 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         self.async_write_ha_state()
 
     async def async_get_light_states(self, *_) -> None:
-        """Mise à jour périodique des états."""
+        """Periodic update of states."""
         _LOGGER.debug("Updating states for group %s", self._attr_name)
-        
+
         available_devices = []
         on_devices = []
 
@@ -579,7 +599,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
             if self._was_unavailable:
                 _LOGGER.info("Group %s is now available - Restoring states", self._attr_name)
                 self.__restore_online_states()
-                # Appliquer les états restaurés
+                """Apply restored states"""
                 if self.is_on:
                     kwargs = {}
                     if self._brightness is not None:
@@ -608,7 +628,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
 
     def update_state(self):
         """Synchronous state update
-        Force Home Assistant to be executed async_write_ha_state 
+        Force Home Assistant to be executed async_write_ha_state
         In the event loop"""
         _LOGGER.debug("Updating state for light %s", self._attr_name)
 
@@ -617,7 +637,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
     def turn_on(self, **kwargs) -> None:
         """Turn on all lights in group."""
         _LOGGER.info("Turning on group %s with parameters: %s", self._attr_name, kwargs)
-        
+
         success = True
         for ip, device in self._devices.items():
             _LOGGER.debug("Verify Device is_on : %s", device.is_on)
@@ -676,7 +696,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
     def turn_off(self, **kwargs) -> None:
         """Turn off all lights in group."""
         _LOGGER.info("Turning off group %s", self._attr_name)
-        
+
         success = True
         for ip, device in self._devices.items():
             if not device.turn_off():
@@ -688,7 +708,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
             self.update_state()
 
     def __backup_online_states(self) -> None:
-        """Sauvegarde des états en ligne."""
+        """Backup of online states."""
         self._saved_states.update({
             'state': self._attr_state,
             'brightness': self._brightness,
@@ -698,7 +718,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         })
 
     def __restore_online_states(self) -> None:
-        """Restauration des états en ligne."""
+        """Restoration of online states."""
         self._attr_state = self._saved_states["state"]
         self._brightness = self._saved_states["brightness"]
         self._attr_effect = self._saved_states["effect"]

@@ -1,8 +1,6 @@
 """Effects management for iHomma SmartLight."""
 from dataclasses import dataclass
 from typing import Dict
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.translation import async_get_translations
 
 from .const import (
     DOMAIN,
@@ -11,14 +9,14 @@ from .const import (
 @dataclass
 class LightEffect:
     """Class representing a light effect."""
-    id: str  # Identifiant unique (ex: "strong_white")
+    id: str  # Unique identifier (ex: "strong_white")
     instruction: int
 
     @property
     def description_key(self) -> str:
-        """Construit la clé de traduction à partir de l'id."""
+        """Build the translation key from ID."""
         return f"component.{DOMAIN}.entity.light.effect.state.{self.id}"
-    
+
 AVAILABLE_EFFECTS: Dict[str, LightEffect] = {
     "strong_white": LightEffect(
         id = "strong_white",

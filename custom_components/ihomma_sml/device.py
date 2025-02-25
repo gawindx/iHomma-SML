@@ -22,7 +22,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 class iHommaSML_Device:
-    """Gestion de la communication avec une ampoule iHomma."""
+    """Communication management with an iHomma bulb."""
 
     def __init__(self, device_ip: str) -> None:
         """Initialize device communication."""
@@ -37,7 +37,7 @@ class iHommaSML_Device:
         self._rgb_color = BASE_COLOR_RGB
         self._state_manager = StateManager()
 
-        # Création du socket UDP réutilisable
+        # Creation of the reusable UDP socket
         self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._udp_socket.settimeout(UDP_TIMEOUT)
@@ -58,7 +58,7 @@ class iHommaSML_Device:
         return self._state
 
     def __parseMessage(self, message) -> dict:
-        """Parse JSON message from device."""
+        """Parse message from device."""
         _LOGGER.debug("Parsing message: %s", message)
 
         try:
@@ -87,9 +87,9 @@ class iHommaSML_Device:
         finally:
             self._available = result is not None and ("HLK_" in str(result))
             _LOGGER.debug(
-                "Device %s response: %s, available: %s", 
-                self._device_ip, 
-                result, 
+                "Device %s response: %s, available: %s",
+                self._device_ip,
+                result,
                 self._available
             )
             return result
@@ -125,7 +125,7 @@ class iHommaSML_Device:
         _LOGGER.debug("Forging instruction: 0x%x with data %s", instruction, data)
 
         header = [0xfe, 0xef]
-        message_length = len(data) + 1 + 1 + 1 + (1 if final_byte else 0)# données + instruction + write_switch + last_byte
+        message_length = len(data) + 1 + 1 + 1 + (1 if final_byte else 0)# data + instruction + write_switch + last_byte
 
         packet = header + [message_length, instruction, write_switch] + data
         packet_size = final_byte
@@ -165,7 +165,7 @@ class iHommaSML_Device:
     def get_state(self) -> Dict[str, Any]:
         """Get cached device state."""
         _LOGGER.debug("Checking availability for light %s", self._device_ip)
-        
+
         watchdog = self.__sendUDPPacket(self._udp_address, "HLK")
         return {
             "available": watchdog is not None,
@@ -237,7 +237,7 @@ class iHommaSML_Device:
         """Convert a value from scale [2700, 6500] to [0, 200]."""
 
         """Ensure value is between 2700 and 6500"""
-        value = max(TEMP_COLOR_MIN_K, 
+        value = max(TEMP_COLOR_MIN_K,
                     min(TEMP_COLOR_MAX_K, value))
 
         converted = (200 - int((value - TEMP_COLOR_MIN_K) * 200 / (TEMP_COLOR_MAX_K - TEMP_COLOR_MIN_K)))
@@ -246,7 +246,7 @@ class iHommaSML_Device:
 
     def set_temperature(self, temperature: int) -> bool:
         """Set color temperature."""
-        # Conversion en valeur compatible avec l'ampoule si nécessaire
+        # Conversion in value compatible with the bulb if necessary
         converted_temp = self.__ConvertTempKelvin(temperature)
         packet = self.__ForgeInstruction(0xa1, 1, [converted_temp], 94)
         result = self.__sendTCPPacket(self._tcp_address, packet)

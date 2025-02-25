@@ -22,13 +22,13 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(CONF_DEVICES_IP): vol.All(
             cv.ensure_list,
             [cv.string],
-            vol.Length(min=1, msg="Au moins une IP est requise pour un groupe")
+            vol.Length(min=1, msg="At least one IP is required for a group")
         ),
     })
 }, extra=vol.ALLOW_EXTRA)
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Setup de l'intégration iHomma SmartLight."""
+    """iHomma Smartlight integration setup."""
     if DOMAIN in config:
         conf = config.get(DOMAIN, {})
         _LOGGER.info(
