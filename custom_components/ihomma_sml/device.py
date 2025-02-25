@@ -4,6 +4,9 @@ import logging
 from typing import Dict, Any, Optional
 
 from homeassistant.const import STATE_ON, STATE_OFF
+from homeassistant.components.light import (
+    ColorMode,
+)
 
 from .state_manager import StateManager
 from .const import (
@@ -35,6 +38,7 @@ class iHommaSML_Device:
         self._color_temp = BASE_COLOR_K
         self._effect = None
         self._rgb_color = BASE_COLOR_RGB
+        self._color_mode = ColorMode.RGB
         self._state_manager = StateManager()
 
         # Creation of the reusable UDP socket
@@ -173,6 +177,7 @@ class iHommaSML_Device:
             "brightness": self._brightness,
             "color_temp": self._color_temp,
             "rgb_color": self._rgb_color,
+            "color_mode": self._color_mode,
             "effect": self._effect
         }
 
@@ -183,6 +188,7 @@ class iHommaSML_Device:
             "brightness": self._brightness,
             "color_temp": self._color_temp,
             "rgb_color": self._rgb_color,
+            "color_mode": self._color_mode,
             "effect": self._effect
         }
         self._state_manager.update_state(self._device_ip, state)

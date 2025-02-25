@@ -242,6 +242,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             self._attr_effect = last_state.attributes.get("effect", None)
             self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
             self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
+            self._attr_color_mode = last_state.attributes.get("color_mode", ColorMode.RGB)
         self.__backup_online_states()
 
         """Configuration of the update timer"""
@@ -283,6 +284,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         self._brightness = state["brightness"]
         self._attr_color_temp_kelvin = state["color_temp"]
         self._attr_rgb_color = state["rgb_color"]
+        self._attr_color_mode = state["color_mode"]
         self._attr_effect = state["effect"]
         self.update_state()
 
@@ -553,6 +555,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
             self._attr_effect = last_state.attributes.get("effect", None)
             self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
             self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
+            self._attr_color_mode = last_state.attributes.get("color_mode", ColorMode.RGB)
         self.__backup_online_states()
 
         """Configuration of the update timer"""
