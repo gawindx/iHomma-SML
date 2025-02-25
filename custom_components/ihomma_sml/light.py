@@ -308,11 +308,11 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
             _LOGGER.debug("Light %s is now available", self.name)
             self.__restore_online_states()
             _LOGGER.info("Light %s is Restoring Last State", self.name)
-            _LOGGER.debug("Light %s Restoring Last State with State: %s", self._attr_state)
-            _LOGGER.debug("Light %s Restoring Last State with Brightness: %s", self._brightness)
-            _LOGGER.debug("Light %s Restoring Last State with Effect: %s", self._attr_effect)
-            _LOGGER.debug("Light %s Restoring Last State with Temp: %s", self._attr_color_temp_kelvin)
-            _LOGGER.debug("Light %s Restoring Last State with RGB: %s", self._attr_rgb_color)
+            _LOGGER.debug("Light %s Restoring Last State with State: %s", self.name, self._attr_state)
+            _LOGGER.debug("Light %s Restoring Last State with Brightness: %s", self.name, self._brightness)
+            _LOGGER.debug("Light %s Restoring Last State with Effect: %s", self.name, self._attr_effect)
+            _LOGGER.debug("Light %s Restoring Last State with Temp: %s", self.name, self._attr_color_temp_kelvin)
+            _LOGGER.debug("Light %s Restoring Last State with RGB: %s", self.name, self._attr_rgb_color)
 
             if (self._attr_state == STATE_ON if self._attr_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE) else False):
                 kwargs = {}
