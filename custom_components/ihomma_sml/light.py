@@ -349,6 +349,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
                     brightness = kwargs[ATTR_BRIGHTNESS]
                     if self._device.set_brightness(brightness):
                         self._brightness = brightness
+                        self._attr_effect = None
 
                 """Check if a color temperature is passed"""
                 if ATTR_COLOR_TEMP_KELVIN in kwargs:
@@ -357,6 +358,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
                         if self._device.set_temperature(temp):
                             self._attr_color_temp_kelvin = temp
                             self._attr_color_mode = ColorMode.COLOR_TEMP
+                            self._attr_effect = None
 
                 """Check if an RGB color is passed"""
                 if ATTR_RGB_COLOR in kwargs:
@@ -364,6 +366,7 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
                     if self._device.set_color(rgb):
                         self._attr_rgb_color = rgb
                         self._attr_color_mode = ColorMode.RGB
+                        self._attr_effect = None
 
                 """Effects management"""
                 if ATTR_EFFECT in kwargs:
@@ -656,6 +659,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
                 brightness = kwargs[ATTR_BRIGHTNESS]
                 if device.set_brightness(brightness):
                     self._brightness = brightness
+                    self._attr_effect = None
                 else:
                     _LOGGER.warning("Failed to set brightness for device %s", ip)
 
@@ -666,6 +670,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
                     if device.set_temperature(temp):
                         self._attr_color_temp_kelvin = temp
                         self._attr_color_mode = ColorMode.COLOR_TEMP
+                        self._attr_effect = None
                     else:
                         _LOGGER.warning("Failed to set temperature for device %s", ip)
 
@@ -675,6 +680,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
                 if device.set_color(rgb):
                     self._attr_rgb_color = rgb
                     self._attr_color_mode = ColorMode.RGB
+                    self._attr_effect = None
                 else:
                     _LOGGER.warning("Failed to set color for device %s", ip)
 
