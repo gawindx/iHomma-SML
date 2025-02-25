@@ -616,7 +616,7 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
                         kwargs[ATTR_RGB_COLOR] = self._attr_rgb_color
                     if self._attr_effect is not None:
                         kwargs[ATTR_EFFECT] = self._attr_effect
-                    await self.async_turn_on(**kwargs)
+                    self.turn_on(**kwargs)
             else:
                 self._attr_state = STATE_ON if on_devices else STATE_OFF
                 self.__backup_online_states()
