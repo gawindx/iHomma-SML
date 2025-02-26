@@ -238,10 +238,10 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         """Restoration of the last known state"""
         if (last_state := await self.async_get_last_state()) is not None:
             self._attr_state = last_state.state
-            self._brightness = last_state.attributes.get("brightness", 255)
+            self._brightness = last_state.attributes.get("brightness", BASE_BRIGHTNESS)
             self._attr_effect = last_state.attributes.get("effect", None)
-            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
-            self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
+            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", BASE_COLOR_K)
+            self._attr_rgb_color = last_state.attributes.get("rgb_color", BASE_COLOR_RGB)
             self._attr_color_mode = last_state.attributes.get("color_mode", ColorMode.RGB)
         self.__backup_online_states()
 
@@ -516,8 +516,18 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         return TEMP_COLOR_MAX_K
 
     @property
+    def brightness(self) -> int | None:
+        """Return the brightness of the group."""
+        return self._brightness
+
+    @property
+    def color_temp_kelvin(self) -> int | None:
+        """Return the average color temperature in kelvin."""
+        return self._attr_color_temp_kelvin if self._attr_color_mode == ColorMode.COLOR_TEMP else None
+
+    @property
     def rgb_color(self) -> tuple[int, int, int] | None:
-        """Return the RGB color value."""
+        """Return the average RGB color."""
         return self._attr_rgb_color if self._attr_color_mode == ColorMode.RGB else None
 
     @property
@@ -554,10 +564,10 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         """Restoration of the last known state"""
         if (last_state := await self.async_get_last_state()) is not None:
             self._attr_state = last_state.state
-            self._brightness = last_state.attributes.get("brightness", 255)
+            self._brightness = last_state.attributes.get("brightness", BASE_BRIGHTNESS)
             self._attr_effect = last_state.attributes.get("effect", None)
-            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", None)
-            self._attr_rgb_color = last_state.attributes.get("rgb_color", None)
+            self._attr_color_temp_kelvin = last_state.attributes.get("color_temp_kelvin", BASE_COLOR_K)
+            self._attr_rgb_color = last_state.attributes.get("rgb_color", BASE_COLOR_RGB)
             self._attr_color_mode = last_state.attributes.get("color_mode", ColorMode.RGB)
         self.__backup_online_states()
 
