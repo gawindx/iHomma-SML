@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.2] - 2024-02-26
+### Amended
+-Improvement of bulbs availability detection via "HLK_" verification
+-Optimization of Timeouts UDP management
+-Refactoring of the network communication code
+-Update of documentation for groups
+
+### Corrected
+-Correction of the Decoding of UDP (Bytes Conversion -> Str) responses
+-Improvement of state restoration after unavailability
+-Correction of synchronization between groups and individual bulbs
+
 ## [0.2.0] - 2024-02-18
 ### Added
 -Support for bulbs groups
