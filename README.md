@@ -5,6 +5,9 @@ Personalized integration for Home Assistant to control the compatible bulbs iHom
   <img src="./iHomma_Logo.png" alt="Logo iHommaHCS" width="200"/>
 </div>
 
+![Tests](https://github.com/gawindx/ihomma-SML/workflows/Tests/badge.svg)
+[![codecov](https://codecov.io/gh/gawindx/ihomma-SML/branch/main/graph/badge.svg)](https://codecov.io/gh/gawindx/ihomma-SML)
+
 ## Description
 
 This integration makes it possible to connect and control the bulbs compatible with the iHommaHCS application directly from Home Assistant. It supports the following features:
