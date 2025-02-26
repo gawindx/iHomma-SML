@@ -280,12 +280,21 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
 
     def _handle_state_update(self, state: Dict[str, Any]) -> None:
         """Handle state updates from other entities."""
+        _LOGGER.debug(
+            "Received state update for %s: %s",
+            self._attr_name,
+            state
+        )
+
+        if state.get("device_ip") != self._device.device_ip:
+            return
+
         self._attr_state = state["state"]
         self._brightness = state["brightness"]
         self._attr_color_temp_kelvin = state["color_temp"]
         self._attr_rgb_color = state["rgb_color"]
-        self._attr_color_mode = state["color_mode"]
         self._attr_effect = state["effect"]
+        self._attr_color_mode = state["color_mode"]
         self.update_state()
 
     async def async_get_light_states(self, *_) -> None:
@@ -478,6 +487,8 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
             "via_device": (DOMAIN, "group"),
         }
 
+        self._state_manager = StateManager()
+
         _LOGGER.info(
             "Initializing iHommaSML Group %s with %d devices: %s",
             self._attr_name,
@@ -589,8 +600,24 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         )
         _LOGGER.debug("Get translations for light %s", self._translations)
 
+        # Register group with state_manager for each device
+        for device_ip in self._devices_ip:
+            self._state_manager.register_light(
+                device_ip,
+                self._handle_state_update
+            )
+
         """Update state after entity loading"""
         self.async_write_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up when entity is removed."""
+        # Unregister group from state_manager for each device
+        for device_ip in self._devices_ip:
+            self._state_manager.unregister_light(
+                device_ip,
+                self._handle_state_update
+            )
 
     async def async_get_light_states(self, *_) -> None:
         """Periodic update of states."""

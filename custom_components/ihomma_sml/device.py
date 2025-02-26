@@ -184,13 +184,17 @@ class iHommaSML_Device:
     def _notify_state_change(self) -> None:
         """Notify state changes."""
         state = {
+            "device_ip": self._device_ip,
             "state": STATE_ON if self._state else STATE_OFF,
             "brightness": self._brightness,
             "color_temp": self._color_temp,
             "rgb_color": self._rgb_color,
             "color_mode": self._color_mode,
-            "effect": self._effect
+            "effect": self._effect,
+            "available": self._available  # Addition of availability
         }
+
+        # Notify all registered callbacks through state manager
         self._state_manager.update_state(self._device_ip, state)
 
     def turn_on(self) -> bool:
@@ -234,8 +238,9 @@ class iHommaSML_Device:
         packet = self.__ForgeInstruction(0xa7, 1, [converted_brightness])
         result = self.__sendTCPPacket(self._tcp_address, packet)
         if result is not None:
-            self._brightness = brightness
-            self._notify_state_change()
+            self._brightness = brightness  # Updating local value
+            self._state = True  # Assures that the state is we
+            self._notify_state_change()  # Notify the change
             return True
         return False
 
@@ -257,8 +262,10 @@ class iHommaSML_Device:
         packet = self.__ForgeInstruction(0xa1, 1, [converted_temp], 94)
         result = self.__sendTCPPacket(self._tcp_address, packet)
         if result is not None:
-            self._color_temp = temperature
-            self._notify_state_change()
+            self._color_temp = temperature  # Updating local value
+            self._color_mode = ColorMode.COLOR_TEMP
+            self._effect = None
+            self._notify_state_change()  # Notify the change
             return True
         return False
 
@@ -276,7 +283,10 @@ class iHommaSML_Device:
         _LOGGER.debug("SetColor result: %s", result)
         if result is not None:
             self._rgb_color = rgb
-            self._notify_state_change()
+            self._rgb_color = rgb  # Updating local value
+            self._color_mode = ColorMode.RGB
+            self._effect = None
+            self._notify_state_change()  # Notify the change
             return True
         return False
 
