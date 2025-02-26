@@ -352,43 +352,43 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         if not (self._attr_state in [STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN]):
             if self._device.turn_on():
                 self._attr_state = STATE_ON
+        else:
+            """Light parameters management"""
+            if ATTR_BRIGHTNESS in kwargs:
+                brightness = kwargs[ATTR_BRIGHTNESS]
+                if self._device.set_brightness(brightness):
+                    self._brightness = brightness
+                    self._attr_effect = None
 
-                """Light parameters management"""
-                if ATTR_BRIGHTNESS in kwargs:
-                    brightness = kwargs[ATTR_BRIGHTNESS]
-                    if self._device.set_brightness(brightness):
-                        self._brightness = brightness
+            """Check if a color temperature is passed"""
+            if ATTR_COLOR_TEMP_KELVIN in kwargs:
+                temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
+                if TEMP_COLOR_MIN_K <= temp <= TEMP_COLOR_MAX_K:
+                    if self._device.set_temperature(temp):
+                        self._attr_color_temp_kelvin = temp
+                        self._attr_color_mode = ColorMode.COLOR_TEMP
                         self._attr_effect = None
 
-                """Check if a color temperature is passed"""
-                if ATTR_COLOR_TEMP_KELVIN in kwargs:
-                    temp = kwargs[ATTR_COLOR_TEMP_KELVIN]
-                    if TEMP_COLOR_MIN_K <= temp <= TEMP_COLOR_MAX_K:
-                        if self._device.set_temperature(temp):
-                            self._attr_color_temp_kelvin = temp
-                            self._attr_color_mode = ColorMode.COLOR_TEMP
-                            self._attr_effect = None
+            """Check if an RGB color is passed"""
+            if ATTR_RGB_COLOR in kwargs:
+                rgb = kwargs[ATTR_RGB_COLOR]
+                if self._device.set_color(rgb):
+                    self._attr_rgb_color = rgb
+                    self._attr_color_mode = ColorMode.RGB
+                    self._attr_effect = None
 
-                """Check if an RGB color is passed"""
-                if ATTR_RGB_COLOR in kwargs:
-                    rgb = kwargs[ATTR_RGB_COLOR]
-                    if self._device.set_color(rgb):
-                        self._attr_rgb_color = rgb
-                        self._attr_color_mode = ColorMode.RGB
-                        self._attr_effect = None
-
-                """Effects management"""
-                if ATTR_EFFECT in kwargs:
-                    effect_str = kwargs[ATTR_EFFECT]
-                    effect = next(
-                        (effect for effect in AVAILABLE_EFFECTS.values()
-                        if self._translations.get(effect.description_key, effect.id) == effect_str),
-                        None
-                    )
-                    _LOGGER.debug("Selected Effect: %s of %s", effect_str, self.effect_list)
-                    if effect and self._device.set_effect(effect.instruction, effect_str):
-                        self._attr_effect = effect_str
-                        self._attr_color_mode = ColorMode.RGB
+            """Effects management"""
+            if ATTR_EFFECT in kwargs:
+                effect_str = kwargs[ATTR_EFFECT]
+                effect = next(
+                    (effect for effect in AVAILABLE_EFFECTS.values()
+                    if self._translations.get(effect.description_key, effect.id) == effect_str),
+                    None
+                )
+                _LOGGER.debug("Selected Effect: %s of %s", effect_str, self.effect_list)
+                if effect and self._device.set_effect(effect.instruction, effect_str):
+                    self._attr_effect = effect_str
+                    self._attr_color_mode = ColorMode.RGB
 
         self.update_state()
 
