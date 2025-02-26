@@ -770,3 +770,60 @@ class iHommaSML_GroupEntity(LightEntity, RestoreEntity):
         self._attr_effect = self._saved_states["effect"]
         self._attr_color_temp_kelvin = self._saved_states["color_temp_kelvin"]
         self._attr_rgb_color = self._saved_states["rgb_color"]
+
+    def _handle_state_update(self, state: Dict[str, Any]) -> None:
+        """Handle state updates from other entities."""
+        # Get updated device IP
+        updated_device_ip = state.get("device_ip")
+
+        if updated_device_ip not in self._devices_ip:
+            return
+
+        # Calculate averages using updated state for the changed device
+        on_devices = []
+        brightnesses = []
+        temp_devices = []
+        rgb_devices = []
+
+        for device_ip, device in self._devices.items():
+            # Use state dict for the updated device, get_state for others
+            if device_ip == updated_device_ip:
+                device_state = state
+            else:
+                device_state = device.get_state()
+
+            if device_state["available"] and device_state["state"] == STATE_ON:
+                on_devices.append(device_ip)
+                brightnesses.append(device_state["brightness"])
+
+                if device_state["color_mode"] == ColorMode.COLOR_TEMP:
+                    temp_devices.append((device_ip, device_state["color_temp"]))
+                elif device_state["color_mode"] == ColorMode.RGB:
+                    rgb_devices.append((device_ip, device_state["rgb_color"]))
+
+        # Update group state based on collected data
+        if on_devices:
+            self._attr_state = STATE_ON
+            self._brightness = int(sum(brightnesses) / len(brightnesses))
+
+            # Update based on dominant mode
+            if len(temp_devices) >= len(rgb_devices):
+                # Temperature mode is dominant
+                if temp_devices:
+                    temps = [temp for _, temp in temp_devices]
+                    self._attr_color_temp_kelvin = int(sum(temps) / len(temps))
+                    self._attr_color_mode = ColorMode.COLOR_TEMP
+            else:
+                # RGB mode is dominant
+                if rgb_devices:
+                    colors = [color for _, color in rgb_devices]
+                    r = int(sum(c[0] for c in colors) / len(colors))
+                    g = int(sum(c[1] for c in colors) / len(colors))
+                    b = int(sum(c[2] for c in colors) / len(colors))
+                    self._attr_rgb_color = (r, g, b)
+                    self._attr_color_mode = ColorMode.RGB
+        else:
+            self._attr_state = STATE_OFF
+
+        # Force interface update
+        self.update_state()
