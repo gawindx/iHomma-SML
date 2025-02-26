@@ -295,6 +295,8 @@ class iHommaSML_Entity(LightEntity, RestoreEntity):
         self._attr_rgb_color = state["rgb_color"]
         self._attr_effect = state["effect"]
         self._attr_color_mode = state["color_mode"]
+
+        # Force interface update
         self.update_state()
 
     async def async_get_light_states(self, *_) -> None:

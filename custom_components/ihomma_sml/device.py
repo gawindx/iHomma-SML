@@ -230,7 +230,7 @@ class iHommaSML_Device:
         return converted
 
     def set_brightness(self, brightness: int) -> bool:
-        """Set device brightness."""
+        """Set brightness."""
         _LOGGER.info("Setting brightness to %s for light %s", brightness, self._device_ip)
         _LOGGER.debug("setBrightness : %s", brightness)
 
@@ -257,8 +257,12 @@ class iHommaSML_Device:
 
     def set_temperature(self, temperature: int) -> bool:
         """Set color temperature."""
-        # Conversion in value compatible with the bulb if necessary
+        """Conversion in value compatible with the bulb if necessary"""
         converted_temp = self.__ConvertTempKelvin(temperature)
+
+        _LOGGER.info("Setting color temperature to %s for light %s", temperature, self._device_ip)
+        _LOGGER.debug("setTemperature : %s", temperature)
+
         packet = self.__ForgeInstruction(0xa1, 1, [converted_temp], 94)
         result = self.__sendTCPPacket(self._tcp_address, packet)
         if result is not None:
@@ -270,7 +274,7 @@ class iHommaSML_Device:
         return False
 
     def set_color(self, rgb: tuple[int, int, int]) -> bool:
-        """Set the light's RGB color"""
+        """Set RGB color."""
         _LOGGER.info("Setting RGB color to %s for light %s", rgb, self._device_ip)
         _LOGGER.debug("setColor : %s", rgb)
 
@@ -278,11 +282,12 @@ class iHommaSML_Device:
         if (rgb == [255, 0, 0]) or (rgb == [0, 255, 0]) or (rgb == [0, 0, 255]):
             final_byte = 94
             _LOGGER.debug("Using final byte 94 for primary color")
+
         packet = self.__ForgeInstruction(0xa1, 1, list(rgb), final_byte)
         result = self.__sendTCPPacket(self._tcp_address, packet)
         _LOGGER.debug("SetColor result: %s", result)
+
         if result is not None:
-            self._rgb_color = rgb
             self._rgb_color = rgb  # Updating local value
             self._color_mode = ColorMode.RGB
             self._effect = None
