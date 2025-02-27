@@ -1,8 +1,8 @@
 """Tests for iHomma SmartLight entities."""
 import pytest
 from unittest.mock import Mock, patch
-from homeassistant.const import STATE_ON, STATE_OFF, STATE_UNAVAILABLE, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR
-from homeassistant.components.light import ColorMode
+from homeassistant.const import STATE_ON, STATE_OFF, STATE_UNAVAILABLE
+from homeassistant.components.light import ColorMode, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR
 from custom_components.ihomma_sml.light import iHommaSML_Entity, iHommaSML_GroupEntity
 
 @pytest.fixture
