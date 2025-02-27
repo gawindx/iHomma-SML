@@ -2,11 +2,21 @@
 
 Personalized integration for Home Assistant to control the compatible bulbs iHomma SmartLight.
 <div align="center">
-  <img src="./iHomma_Logo.png" alt="Logo iHommaHCS" width="200"/>
+  <img src="./brand_icons/icon@2x.png" alt="Logo iHommaHCS" width="200"/>
 </div>
 
-![Tests](https://github.com/gawindx/ihomma-SML/workflows/Tests/badge.svg)
-[![codecov](https://codecov.io/gh/gawindx/ihomma-SML/branch/main/graph/badge.svg)](https://codecov.io/gh/gawindx/ihomma-SML)
+![Hassfest Badge ](https://github.com/gawindx/iHomma-SML/actions/workflows/hassfest.yaml/badge.svg)
+![HACS Badge](https://github.com/gawindx/iHomma-SML/actions/workflows/hacs.yaml/badge.svg)
+![Tests Badge](https://github.com/gawindx/iHomma-SML/actions/workflows/tests.yaml/badge.svg)
+
+[![HACS Badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
+[![License](https://img.shields.io/github/license/gawindx/iHomma-SML)](https://github.com/gawindx/iHomma-SML/blob/main/LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/gawindx/iHomma-SML)](https://github.com/gawindx/iHomma-SML/releases)
+[![Size](https://img.badgesize.io/https:/github.com/gawindx/iHomma-SML/releases/latest/download/iHomma-SML.zip)](https://github.com/gawindx/iHomma-SML/releases)
+
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=gawindx&repository=iHomma-SML&category=integration)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ihomma-sml)
 
 ## Description
 
