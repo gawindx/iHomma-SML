@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, 'dev**' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, 'dev**' ]
 
 jobs:
   test:
@@ -16,22 +16,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Configuration de Python ${{ matrix.python-version }}
+    - name: Python Configuration ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
         
-    - name: Installation des dépendances
+    - name: Installing dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-asyncio pytest-cov
         pip install homeassistant
         
-    - name: Exécution des tests
+    - name: Running the tests
       run: |
         python -m pytest tests/ -v --cov=custom_components/ihomma_sml --cov-report=xml
         
-    - name: Upload de la couverture de code
+    - name: Uploading code coverage
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
