@@ -1,13 +1,17 @@
 """Common fixtures for iHomma SmartLight tests."""
 import pytest
+import asyncio
+from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from unittest.mock import patch
 
 @pytest.fixture
-async def hass() -> HomeAssistant:
+async def hass(tmp_path) -> HomeAssistant:
     """Fixture pour créer une instance de HomeAssistant pour les tests."""
-    return HomeAssistant()
+    hass = HomeAssistant(str(tmp_path))
+    await hass.async_start()
+    return hass
 
 @pytest.fixture
 def mock_light_entity():
@@ -40,13 +44,15 @@ def mock_socket(monkeypatch):
             pass
     
     monkeypatch.setattr("socket.socket", MockSocket)
+    return MockSocket()
 
 @pytest.fixture(autouse=True)
 def allow_socket(request):
     """Fixture pour autoriser les sockets dans les tests."""
     marker = request.node.get_closest_marker("allow_sockets")
     if marker:
-        with pytest.warns(None):
+        # Modification de la gestion des warnings
+        with pytest.warns(Warning):
             yield
     else:
         yield
