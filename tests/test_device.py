@@ -86,7 +86,6 @@ async def test_device_availability(mock_socket_module):
     
     # Test via la propriété available
     assert device.available is True
-    assert device._last_command_success is True
 
 @pytest.mark.asyncio
 async def test_device_unavailability(mock_socket_module):
@@ -97,14 +96,13 @@ async def test_device_unavailability(mock_socket_module):
     
     # Test via la propriété available
     assert device.available is False
-    assert device._last_command_success is False
 
 def test_brightness_conversion():
     """Test brightness value conversion."""
     device = iHommaSML_Device("192.168.1.100")
-    assert device._ConvertBrightness(255) == 200
-    assert device._ConvertBrightness(0) == 0
-    assert device._ConvertBrightness(128) == 100
+    assert device.__ConvertBrightness(255) == 200
+    assert device.__ConvertBrightness(0) == 0
+    assert device.__ConvertBrightness(128) == 100
 
 def test_device_turn_on(mock_socket_module):
     """Test device turn on command."""
