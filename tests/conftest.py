@@ -40,3 +40,13 @@ def mock_socket(monkeypatch):
             pass
     
     monkeypatch.setattr("socket.socket", MockSocket)
+
+@pytest.fixture(autouse=True)
+def allow_socket(request):
+    """Fixture pour autoriser les sockets dans les tests."""
+    marker = request.node.get_closest_marker("allow_sockets")
+    if marker:
+        with pytest.warns(None):
+            yield
+    else:
+        yield

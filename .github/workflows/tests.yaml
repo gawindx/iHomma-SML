@@ -30,7 +30,7 @@ jobs:
         
     - name: Running the tests
       run: |
-        python -m pytest tests/ -v --asyncio-mode=auto --cov=custom_components/ihomma_sml --cov-report=xml
+        python -m pytest tests/ -v --asyncio-mode=auto --allow-unix-socket --cov=custom_components/ihomma_sml --cov-report=xml
         
     - name: Uploading code coverage
       uses: codecov/codecov-action@v3

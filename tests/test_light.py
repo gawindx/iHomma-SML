@@ -6,18 +6,38 @@ from homeassistant.components.light import ColorMode, ATTR_BRIGHTNESS, ATTR_COLO
 from custom_components.ihomma_sml.light import iHommaSML_Entity, iHommaSML_GroupEntity
 
 @pytest.fixture
-def mock_socket():
-    """Mock pour les sockets réseau"""
-    with patch('socket.socket') as mock:
-        yield mock
+def mock_socket(monkeypatch):
+    """Mock pour les sockets réseau."""
+    class MockSocket:
+        def __init__(self, *args, **kwargs):
+            pass
+            
+        def setsockopt(self, *args, **kwargs):
+            pass
+            
+        def settimeout(self, *args, **kwargs):
+            pass
+            
+        def sendto(self, *args, **kwargs):
+            return 0
+            
+        def recvfrom(self, *args, **kwargs):
+            return b"HLK_TEST", ("192.168.1.100", 988)
+            
+        def close(self):
+            pass
+    
+    monkeypatch.setattr("socket.socket", MockSocket)
+    return MockSocket()
 
 @pytest.fixture
 def light_entity(hass):
     """Fixture pour créer une entité de test"""
     return iHommaSML_Entity(hass, {"name": "Test Light", "device_ip": "192.168.1.100"})
 
+@pytest.mark.allow_sockets
 @pytest.mark.asyncio
-async def test_light_entity_initialization():
+async def test_light_entity_initialization(mock_socket):
     """Test light entity initialization."""
     hass = Mock()
     entry_infos = {
