@@ -73,22 +73,26 @@ def test_device_rgb_color(mock_socket_module):
     assert device._rgb_color == (255, 0, 0)
 
 @pytest.mark.asyncio
-async def test_device_availability():
-    """Test device availability check."""
+async def test_device_availability(mock_socket_module):
+    """Test device availability detection."""
     device = iHommaSML_Device("192.168.1.100")
-    with patch('socket.socket') as mock_socket:
-        mock_socket.return_value.recvfrom.return_value = (b"HLK_123", None)
-        assert device.check_availability() is True
-        assert device.available is True
+    # Force une réponse valide du mock socket
+    mock_socket_module.recvfrom.return_value = (b"HLK_TEST", None)
+    
+    # Test via la propriété available
+    assert device.available is True
+    assert device._last_command_success is True
 
 @pytest.mark.asyncio
-async def test_device_unavailability():
+async def test_device_unavailability(mock_socket_module):
     """Test device unavailability detection."""
     device = iHommaSML_Device("192.168.1.100")
-    with patch('socket.socket') as mock_socket:
-        mock_socket.return_value.recvfrom.return_value = (b"ERROR", None)
-        assert device.check_availability() is False
-        assert device.available is False
+    # Force une réponse invalide du mock socket
+    mock_socket_module.recvfrom.return_value = (b"ERROR", None)
+    
+    # Test via la propriété available
+    assert device.available is False
+    assert device._last_command_success is False
 
 def test_brightness_conversion():
     """Test brightness value conversion."""
