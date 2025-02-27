@@ -17,12 +17,21 @@ def test_device_initialization(mock_socket_module):
 def test_device_availability(mock_socket_module):
     """Test device availability detection."""
     device = iHommaSML_Device("192.168.1.100")
-    # Force une réponse valide du mock socket
-    mock_socket_module.recvfrom.return_value = (b"HLK_TEST", None)
     
-    # Test via la propriété available
+    # Force une communication réussie
+    device._last_command_success = True
+    
+    # Envoi d'une commande pour tester la disponibilité
+    success = device.turn_on()
+    
+    # Vérifications
+    assert success is True
     assert device.available is True
     assert device._last_command_success is True
+    
+    # Vérifie que le mock a bien été appelé
+    mock_socket_module.sendto.assert_called()
+    mock_socket_module.recvfrom.assert_called()
 
 def test_device_unavailability(mock_socket_module):
     """Test device unavailability detection."""
