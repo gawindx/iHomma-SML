@@ -18,17 +18,29 @@ async def hass(tmp_path) -> HomeAssistant:
 def mock_socket_module(monkeypatch):
     """Mock global socket module."""
     mock_socket = Mock()
-    # Configuration par défaut du mock
+    
+    # Configuration par défaut du mock avec une réponse HLK_ valide
     mock_socket.recvfrom.return_value = (b"HLK_TEST", ("192.168.1.100", 988))
-    mock_socket.sendto.return_value = 0
+    mock_socket.sendto.return_value = len(b"HLK_TEST")  # Simule l'envoi réussi
     mock_socket.setsockopt.return_value = None
     mock_socket.settimeout.return_value = None
 
-    def mock_socket_factory(*args, **kwargs):
-        return mock_socket
+    class MockSocket:
+        def __init__(self, *args, **kwargs):
+            pass
+        def setsockopt(self, *args, **kwargs):
+            return None
+        def settimeout(self, *args, **kwargs):
+            return None
+        def sendto(self, data, addr):
+            return len(data)
+        def recvfrom(self, bufsize):
+            return b"HLK_TEST", ("192.168.1.100", 988)
+        def close(self):
+            pass
 
     # Remplacement du socket par notre mock
-    monkeypatch.setattr("socket.socket", mock_socket_factory)
+    monkeypatch.setattr(socket, "socket", lambda *args, **kwargs: MockSocket())
     return mock_socket
 
 @pytest.fixture
