@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, patch
 from custom_components.ihomma_sml.device import iHommaSML_Device
 
-def test_device_initialization():
+def test_device_initialization(mock_socket_module):
     """Test device initialization."""
     device = iHommaSML_Device("192.168.1.100")
     assert device.device_ip == "192.168.1.100"
