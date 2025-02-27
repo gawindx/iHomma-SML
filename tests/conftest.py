@@ -5,7 +5,7 @@ import asyncio
 from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 
 @pytest.fixture
 async def hass(tmp_path) -> HomeAssistant:
@@ -17,7 +17,7 @@ async def hass(tmp_path) -> HomeAssistant:
 @pytest.fixture(autouse=True)
 def mock_socket_module(monkeypatch):
     """Mock global socket module."""
-    mock_socket = MagicMock(spec=socket.socket)
+    mock_socket = Mock()
     mock_socket.recvfrom.return_value = (b"HLK_TEST", ("192.168.1.100", 988))
     mock_socket.sendto.return_value = 0
 
@@ -30,7 +30,7 @@ def mock_socket_module(monkeypatch):
             return mock_socket
 
     mock_socket_module = MockSocketClass()
-    monkeypatch.setattr(socket, 'socket', mock_socket_module)
+    monkeypatch.setattr("socket.socket", mock_socket_module)
     return mock_socket
 
 @pytest.fixture

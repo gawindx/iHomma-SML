@@ -14,6 +14,40 @@ def test_device_initialization(mock_socket_module):
     assert device.device_ip == "192.168.1.100"
     assert not device.available
 
+def test_device_availability(mock_socket_module):
+    """Test device availability detection."""
+    device = iHommaSML_Device("192.168.1.100")
+    # Force une réponse valide du mock socket
+    mock_socket_module.recvfrom.return_value = (b"HLK_TEST", None)
+    
+    # Test via la propriété available
+    assert device.available is True
+    assert device._last_command_success is True
+
+def test_device_unavailability(mock_socket_module):
+    """Test device unavailability detection."""
+    device = iHommaSML_Device("192.168.1.100")
+    # Force une réponse invalide du mock socket
+    mock_socket_module.recvfrom.return_value = (b"ERROR", None)
+    
+    # Test via la propriété available
+    assert device.available is False
+    assert device._last_command_success is False
+
+def test_brightness_adjustment(mock_socket_module):
+    """Test brightness value adjustment."""
+    device = iHommaSML_Device("192.168.1.100")
+    
+    # Test de conversion de luminosité (0-255 vers 0-200)
+    device.set_brightness(255)
+    assert device._brightness == 200
+    
+    device.set_brightness(128)
+    assert device._brightness == 100
+    
+    device.set_brightness(0)
+    assert device._brightness == 0
+
 def test_device_send_command(mock_socket_module):
     """Test device command sending."""
     device = iHommaSML_Device("192.168.1.100")

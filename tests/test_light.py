@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import Mock, patch
 from homeassistant.const import STATE_ON, STATE_OFF, STATE_UNAVAILABLE
-from homeassistant.components.light import ColorMode, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR
+from homeassistant.components.light import ColorMode, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR, LightEntityFeature
 from custom_components.ihomma_sml.light import iHommaSML_Entity, iHommaSML_GroupEntity
 from homeassistant.core import HomeAssistant
 
@@ -37,19 +37,26 @@ def light_entity(hass):
     return iHommaSML_Entity(hass, {"name": "Test Light", "device_ip": "192.168.1.100"})
 
 @pytest.mark.asyncio
-async def test_light_entity_initialization(hass, mock_socket):
-    """Test light entity initialization."""
+async def test_light_entity_initialization(hass, mock_socket_module):
+    """Test l'initialisation d'une entité light."""
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
     entity = iHommaSML_Entity(hass, entry_infos)
     
-    # Vérification de l'unique_id généré
+    # Vérification de l'identifiant unique
     expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
     assert entity.unique_id == expected_unique_id
+    
+    # Vérification des autres attributs
     assert entity.name == entry_infos["name"]
+    assert entity.device_ip == entry_infos["device_ip"]
     assert not entity.available
+    
+    # Vérification des capacités
+    assert entity.supported_color_modes == {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB}
+    assert entity.supported_features & LightEntityFeature.EFFECT
 
 @pytest.mark.asyncio
 async def test_group_entity_initialization():
