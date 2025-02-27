@@ -5,12 +5,9 @@ from homeassistant.setup import async_setup_component
 from unittest.mock import patch
 
 @pytest.fixture
-def hass(loop):
-    """Fixture to provide a test instance of Home Assistant."""
-    hass = HomeAssistant()
-    loop.run_until_complete(hass.async_start())
-    yield hass
-    loop.run_until_complete(hass.async_stop())
+async def hass() -> HomeAssistant:
+    """Fixture pour créer une instance de HomeAssistant pour les tests."""
+    return HomeAssistant()
 
 @pytest.fixture
 def mock_light_entity():
@@ -19,3 +16,27 @@ def mock_light_entity():
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
+
+@pytest.fixture
+def mock_socket(monkeypatch):
+    """Fixture pour mocker le socket."""
+    class MockSocket:
+        def __init__(self, *args, **kwargs):
+            pass
+            
+        def setsockopt(self, *args, **kwargs):
+            pass
+            
+        def settimeout(self, *args, **kwargs):
+            pass
+            
+        def sendto(self, *args, **kwargs):
+            return 0
+            
+        def recvfrom(self, *args, **kwargs):
+            return b"HLK_TEST", ("192.168.1.100", 988)
+            
+        def close(self):
+            pass
+    
+    monkeypatch.setattr("socket.socket", MockSocket)
