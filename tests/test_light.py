@@ -91,16 +91,16 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     _LOGGER.debug("Test de l'unique_id réussi")
     
     # Test des attributs de base
-    _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity.name)
-    assert entity.name == entry_infos["name"]
+    _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity._attr_name)
+    assert entity._attr_name == entry_infos["name"]
     
     # Test de disponibilité
-    _LOGGER.debug("Test de disponibilité initiale: %s", entity.available)
-    assert not entity.available
+    _LOGGER.debug("Test de disponibilité initiale: %s", entity._attr_available)
+    assert not entity._attr_available
     
     # Test des modes supportés
     _LOGGER.debug("Test des modes de couleur supportés")
-    supported_modes = entity.supported_color_modes
+    supported_modes = entity._attr_supported_color_modes
     _LOGGER.debug("Modes supportés: %s", supported_modes)
     assert ColorMode.BRIGHTNESS in supported_modes
     assert ColorMode.COLOR_TEMP in supported_modes
@@ -108,7 +108,7 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     
     # Test des fonctionnalités
     _LOGGER.debug("Test des fonctionnalités supportées")
-    features = entity.supported_features
+    features = entity._attr_supported_features
     _LOGGER.debug("Fonctionnalités: %s", features)
     assert features & LightEntityFeature.EFFECT
     
