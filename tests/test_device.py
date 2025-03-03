@@ -69,6 +69,7 @@ def test_device_controls(mock_socket_module):
     success = device.set_brightness(255)
     _LOGGER.debug("Résultat set_brightness: %s", success)
     assert success is True
+    _LOGGER.debug("Résultat set_brightness value: %s", device._brightness)
     assert device._brightness == 200  # Conversion 255 -> 200
     
     # Test Color Temperature avec logs
