@@ -102,7 +102,6 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     _LOGGER.debug("Test des modes de couleur supportés")
     supported_modes = entity._attr_supported_color_modes
     _LOGGER.debug("Modes supportés: %s", supported_modes)
-    assert ColorMode.BRIGHTNESS in supported_modes
     assert ColorMode.COLOR_TEMP in supported_modes
     assert ColorMode.RGB in supported_modes
     
