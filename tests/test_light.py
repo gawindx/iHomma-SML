@@ -78,7 +78,7 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     # Suite des tests avec plus de détails...
     _LOGGER.debug("=== Tests des attributs ===")
     
-    expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
+    expected_unique_id = f"ihomma_sml_{entry_infos['name'].replace(' ', '_').lower()}"
     _LOGGER.debug("Test de l'unique_id:")
     _LOGGER.debug("- Attendu: %s", expected_unique_id)
     _LOGGER.debug("- Obtenu: %s", entity.unique_id)
