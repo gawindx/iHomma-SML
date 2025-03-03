@@ -1,5 +1,6 @@
 """Tests for iHomma SmartLight device."""
 import pytest
+import logging
 from unittest.mock import Mock, patch
 from custom_components.ihomma_sml.device import iHommaSML_Device
 from custom_components.ihomma_sml.const import (
@@ -7,6 +8,10 @@ from custom_components.ihomma_sml.const import (
     BASE_COLOR_K,
     BASE_COLOR_RGB
 )
+
+# Configuration des logs pour les tests
+logging.basicConfig(level=logging.DEBUG)
+_LOGGER = logging.getLogger(__name__)
 
 def test_device_initialization(mock_socket_module):
     """Test device initialization."""
@@ -30,18 +35,25 @@ def test_device_availability(mock_socket_module):
 
 def test_device_unavailability(mock_socket_module):
     """Test device unavailability detection."""
+    _LOGGER.debug("Démarrage du test d'indisponibilité")
     device = iHommaSML_Device("192.168.1.100")
     
     # Mock de la réponse UDP pour simuler une erreur
     def raise_error(*args):
+        _LOGGER.debug("Simulation d'une erreur de connexion")
         raise Exception("Connection failed")
     
+    _LOGGER.debug("Configuration du mock socket")
     mock_socket_module.recvfrom = raise_error
     
     # Vérifier via get_state()
+    _LOGGER.debug("Appel de get_state()")
     state = device.get_state()
-    assert not state["available"]  # Plus clair que is not True
+    _LOGGER.debug("État reçu: %s", state)
+    
+    assert not state["available"]
     assert not device.available
+    _LOGGER.debug("Test d'indisponibilité terminé avec succès")
 
 def test_device_controls(mock_socket_module):
     """Test device controls (on/off, brightness, color, temp)."""
