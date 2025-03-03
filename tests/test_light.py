@@ -88,9 +88,10 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     expected_id = str(expected_unique_id).strip()
     
     assert actual_id == expected_id
-
+    _LOGGER.debug("Test de l'unique_id réussi")
+    
     # Test des attributs de base
-    _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity.name, entity.device_ip)
+    _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity.name)
     assert entity.name == entry_infos["name"]
     
     # Test de disponibilité
