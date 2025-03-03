@@ -137,53 +137,54 @@ async def test_light_state_restoration(hass, mock_socket_module):
         "device_ip": "192.168.1.100"
     }
     
-    # Mock des traductions
-    translations = {
-        "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
-        "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light",
-        "component.ihomma_sml.entity.light.effect.state.morning_light": "Morning light",
-        "component.ihomma_sml.entity.light.effect.state.nature_light": "Nature light"
-    }
-    
     # Mock de l'état précédent
     mock_restored_state = Mock()
+    mock_restored_state.state = STATE_ON
     mock_restored_state.attributes = {
         "brightness": 128,
         "color_temp_kelvin": 4000,
         "rgb_color": (255, 255, 255),
-        "effect": None
+        "effect": None,
+        "supported_color_modes": [ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB],
+        "supported_features": LightEntityFeature.EFFECT
     }
-    mock_restored_state.state = STATE_ON
     
-    # Configuration des mocks
-    with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state',
-              return_value=mock_restored_state), \
+    # Configuration des mocks et hass
+    async def mock_async_get_last_state():
+        _LOGGER.debug("Mock async_get_last_state appelé")
+        return mock_restored_state
+    
+    async def mock_async_get_translations(*args, **kwargs):
+        _LOGGER.debug("Mock async_get_translations appelé avec: %s, %s", args, kwargs)
+        return {
+            "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
+            "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light"
+        }
+    
+    # Configuration de hass
+    hass.config = Mock()
+    hass.config.language = "en"
+    
+    with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state', 
+              new=mock_async_get_last_state), \
          patch('homeassistant.helpers.translation.async_get_translations',
-              return_value=translations):
+              side_effect=mock_async_get_translations):
         
-        _LOGGER.debug("État restauré simulé: %s", mock_restored_state.attributes)
-        _LOGGER.debug("Traductions simulées: %s", translations)
-        
-        # Configuration de hass
-        hass.config = Mock()
-        hass.config.language = "en"
-        
+        _LOGGER.debug("Création de l'entité")
         entity = iHommaSML_Entity(hass, entry_infos)
         entity.hass = hass
         
-        # Déclencher la restauration
-        _LOGGER.debug("Déclenchement de la restauration")
+        _LOGGER.debug("Déclenchement de async_added_to_hass")
         await entity.async_added_to_hass()
         
+        _LOGGER.debug("=== Vérification des états ===")
+        _LOGGER.debug("État actuel: %s", entity.state)
+        _LOGGER.debug("Luminosité: %s", getattr(entity, 'brightness', None))
+        _LOGGER.debug("Température: %s", getattr(entity, 'color_temp_kelvin', None))
+        
         # Vérifications
-        _LOGGER.debug("=== Vérification des états restaurés ===")
-        _LOGGER.debug("État: attendu=%s, obtenu=%s", STATE_ON, entity.state)
         assert entity.state == STATE_ON
-        
-        _LOGGER.debug("Luminosité: attendu=%s, obtenu=%s", 128, entity.brightness)
         assert entity.brightness == 128
-        
-        _LOGGER.debug("Température: attendu=%s, obtenu=%s", 4000, entity.color_temp_kelvin)
         assert entity.color_temp_kelvin == 4000
         
         _LOGGER.debug("Test de restauration terminé avec succès")
