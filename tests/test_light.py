@@ -129,32 +129,68 @@ async def test_group_entity_initialization():
 @pytest.mark.asyncio
 async def test_light_state_restoration(hass, mock_socket_module):
     """Test light state restoration."""
+    _LOGGER.debug("=== Démarrage du test de restauration d'état ===")
+    
+    # Vérification de l'instance hass
+    _LOGGER.debug("Vérification de l'instance hass:")
+    _LOGGER.debug("- Type: %s", type(hass))
+    _LOGGER.debug("- État: %s", getattr(hass, 'state', None))
+    
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
-    entity = iHommaSML_Entity(hass, entry_infos)
+    _LOGGER.debug("Configuration initiale: %s", entry_infos)
     
-    # Simuler un état sauvegardé
-    entity._saved_states = {
-        "state": STATE_ON,
-        "brightness": 128,
-        "effect": None,
-        "color_temp_kelvin": 4000,
-        "rgb_color": (255, 255, 255)
-    }
-    
-    entity._attr_available = True
-    entity._was_unavailable = True
-    
-    # Déclencher la restauration d'état
-    await entity.async_get_light_states()
-    
-    # Vérifier que l'état a été restauré
-    assert entity.state == STATE_ON
-    assert entity.brightness == 128
-    assert entity.color_temp_kelvin == 4000
-    assert entity.rgb_color == (255, 255, 255)
+    try:
+        entity = iHommaSML_Entity(hass, entry_infos)
+        _LOGGER.debug("Entité créée avec succès")
+        
+        # Configuration initiale de l'entité
+        _LOGGER.debug("Configuration de l'entité pour le test")
+        entity.hass = hass
+        await entity.async_added_to_hass()
+        
+        # Simuler un état sauvegardé
+        saved_states = {
+            "state": STATE_ON,
+            "brightness": 128,
+            "effect": None,
+            "color_temp_kelvin": 4000,
+            "rgb_color": (255, 255, 255)
+        }
+        _LOGGER.debug("États à restaurer: %s", saved_states)
+        entity._saved_states = saved_states
+        
+        _LOGGER.debug("Configuration des flags de disponibilité")
+        entity._attr_available = True
+        entity._was_unavailable = True
+        
+        # Déclencher la restauration d'état
+        _LOGGER.debug("Déclenchement de la restauration d'état")
+        await entity.async_get_light_states()
+        
+        # Vérification des états
+        _LOGGER.debug("=== Vérification des états restaurés ===")
+        _LOGGER.debug("État: attendu=%s, obtenu=%s", STATE_ON, entity.state)
+        _LOGGER.debug("Luminosité: attendu=%s, obtenu=%s", 128, entity.brightness)
+        _LOGGER.debug("Température: attendu=%s, obtenu=%s", 4000, entity.color_temp_kelvin)
+        _LOGGER.debug("Couleur RGB: attendu=%s, obtenu=%s", (255, 255, 255), entity.rgb_color)
+        
+        # Assertions avec messages détaillés
+        assert entity.state == STATE_ON, f"État incorrect: {entity.state} != {STATE_ON}"
+        assert entity.brightness == 128, f"Luminosité incorrecte: {entity.brightness} != 128"
+        assert entity.color_temp_kelvin == 4000, f"Température incorrecte: {entity.color_temp_kelvin} != 4000"
+        assert entity.rgb_color == (255, 255, 255), f"Couleur RGB incorrecte: {entity.rgb_color} != (255, 255, 255)"
+        
+        _LOGGER.debug("Test de restauration d'état terminé avec succès")
+        
+    except Exception as e:
+        _LOGGER.error("Erreur pendant le test de restauration:")
+        _LOGGER.error("Type: %s", type(e))
+        _LOGGER.error("Message: %s", str(e))
+        _LOGGER.error("Arguments: %s", e.args)
+        raise
 
 @pytest.mark.asyncio
 async def test_light_turn_on(hass, mock_socket_module):
