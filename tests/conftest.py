@@ -12,8 +12,18 @@ from unittest.mock import patch, MagicMock, Mock
 logging.basicConfig(level=logging.DEBUG)
 _LOGGER = logging.getLogger(__name__)
 
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    _LOGGER.debug("Création de la boucle d'événements")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    _LOGGER.debug("Nettoyage de la boucle d'événements")
+    loop.close()
+
 @pytest.fixture
-async def hass(tmp_path) -> HomeAssistant:
+async def hass(event_loop, tmp_path) -> HomeAssistant:
     """Fixture pour créer une instance de HomeAssistant pour les tests."""
     _LOGGER.debug("Création du fixture hass avec tmp_path: %s", tmp_path)
     try:
