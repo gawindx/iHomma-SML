@@ -1,15 +1,35 @@
 """Tests for iHomma SmartLight entities."""
 import pytest
 from unittest.mock import Mock, patch
-from homeassistant.const import STATE_ON, STATE_OFF, STATE_UNAVAILABLE, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR
-from homeassistant.components.light import ColorMode
+from homeassistant.const import STATE_ON, STATE_OFF, STATE_UNAVAILABLE
+from homeassistant.components.light import ColorMode, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR, LightEntityFeature
 from custom_components.ihomma_sml.light import iHommaSML_Entity, iHommaSML_GroupEntity
+from homeassistant.core import HomeAssistant
 
 @pytest.fixture
-def mock_socket():
-    """Mock pour les sockets réseau"""
-    with patch('socket.socket') as mock:
-        yield mock
+def mock_socket(monkeypatch):
+    """Mock pour les sockets réseau."""
+    class MockSocket:
+        def __init__(self, *args, **kwargs):
+            pass
+            
+        def setsockopt(self, *args, **kwargs):
+            pass
+            
+        def settimeout(self, *args, **kwargs):
+            pass
+            
+        def sendto(self, *args, **kwargs):
+            return 0
+            
+        def recvfrom(self, *args, **kwargs):
+            return b"HLK_TEST", ("192.168.1.100", 988)
+            
+        def close(self):
+            pass
+    
+    monkeypatch.setattr("socket.socket", MockSocket)
+    return MockSocket()
 
 @pytest.fixture
 def light_entity(hass):
@@ -17,17 +37,26 @@ def light_entity(hass):
     return iHommaSML_Entity(hass, {"name": "Test Light", "device_ip": "192.168.1.100"})
 
 @pytest.mark.asyncio
-async def test_light_entity_initialization():
-    """Test light entity initialization."""
-    hass = Mock()
+async def test_light_entity_initialization(hass, mock_socket_module):
+    """Test l'initialisation d'une entité light."""
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
     entity = iHommaSML_Entity(hass, entry_infos)
-    assert entity.name == "Test Light"
-    assert entity.unique_id == "ihomma_sml_192_168_1_100"
-    assert entity.available is False
+    
+    # Vérification de l'identifiant unique
+    expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
+    assert entity.unique_id == expected_unique_id
+    
+    # Vérification des autres attributs
+    assert entity.name == entry_infos["name"]
+    assert entity.device_ip == entry_infos["device_ip"]
+    assert not entity.available
+    
+    # Vérification des capacités
+    assert entity.supported_color_modes == {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB}
+    assert entity.supported_features & LightEntityFeature.EFFECT
 
 @pytest.mark.asyncio
 async def test_group_entity_initialization():
@@ -43,9 +72,8 @@ async def test_group_entity_initialization():
     assert entity.available is False
 
 @pytest.mark.asyncio
-async def test_light_state_restoration():
+async def test_light_state_restoration(hass, mock_socket_module):
     """Test light state restoration."""
-    hass = Mock()
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
@@ -63,32 +91,90 @@ async def test_light_state_restoration():
     
     entity._attr_available = True
     entity._was_unavailable = True
-    await entity.async_update()
     
+    # Déclencher la restauration d'état
+    await entity.async_get_light_states()
+    
+    # Vérifier que l'état a été restauré
     assert entity.state == STATE_ON
     assert entity.brightness == 128
+    assert entity.color_temp_kelvin == 4000
+    assert entity.rgb_color == (255, 255, 255)
 
 @pytest.mark.asyncio
-async def test_light_turn_on(hass, mock_light_entity):
-    """Test turning the light on."""
-    entity = iHommaSML_Entity(hass, mock_light_entity)
+async def test_light_turn_on(hass, mock_socket_module):
+    """Test light turn on."""
+    entry_infos = {
+        "name": "Test Light",
+        "device_ip": "192.168.1.100"
+    }
+    entity = iHommaSML_Entity(hass, entry_infos)
     
-    with patch.object(entity, '_iHommaSML_Entity__turnOnOff') as mock_turn_on:
-        await entity.async_turn_on()
-        mock_turn_on.assert_called_once_with(True)
-        assert entity._attr_state == STATE_ON
+    # Simulation de la disponibilité
+    entity._attr_available = True
+    
+    # Test de l'allumage
+    await entity.async_turn_on()
+    assert entity.state == STATE_ON
+    
+    # Test avec luminosité
+    await entity.async_turn_on(brightness=128)
+    assert entity.brightness == 128
+    
+    # Test avec température de couleur
+    await entity.async_turn_on(color_temp_kelvin=4000)
+    assert entity.color_temp_kelvin == 4000
+    
+    # Test avec couleur RGB
+    await entity.async_turn_on(rgb_color=(255, 0, 0))
+    assert entity.rgb_color == (255, 0, 0)
 
 @pytest.mark.asyncio
-async def test_effect_translations(hass):
-    """Test la gestion des traductions des effets."""
+async def test_light_turn_off(hass, mock_socket_module):
+    """Test light turn off."""
+    entry_infos = {
+        "name": "Test Light",
+        "device_ip": "192.168.1.100"
+    }
+    entity = iHommaSML_Entity(hass, entry_infos)
+    
+    # Simulation de la disponibilité
+    entity._attr_available = True
+    
+    # Test de l'extinction
+    await entity.async_turn_off()
+    assert entity.state == STATE_OFF
+
+@pytest.mark.asyncio
+async def test_effect_translations(hass, mock_socket_module):
+    """Test effect translations management."""
+    # Configure mock Home Assistant
+    hass.config = Mock()
+    hass.config.language = "en"
+    
+    # Mock translations
+    translations = {
+        "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
+        "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light",
+        "component.ihomma_sml.entity.light.effect.state.morning_light": "Morning light",
+        "component.ihomma_sml.entity.light.effect.state.nature_light": "Nature light"
+    }
+    
     with patch('homeassistant.helpers.translation.async_get_translations') as mock_trans:
-        mock_trans.return_value = {
-            "strong_white": "Strong white/yellow (strong, warm)",
-            "candlelight": "Candlelight"
-        }
+        mock_trans.return_value = translations
         
-        entity = iHommaSML_Entity(hass, {"name": "Test Light", "device_ip": "192.168.1.100"})
+        entity = iHommaSML_Entity(hass, {
+            "name": "Test Light", 
+            "device_ip": "192.168.1.100"
+        })
+        
         await entity.async_added_to_hass()
         
-        assert "Strong white/yellow (strong, warm)" in entity.effect_list
-        assert "Candlelight" in entity.effect_list
+        # Verify translations
+        assert "Strong white" in entity.effect_list
+        assert "Candle light" in entity.effect_list
+        assert "Morning light" in entity.effect_list
+        assert "Nature light" in entity.effect_list
+        
+        # Verify fallback for untranslated effects
+        assert len(entity.effect_list) > len(translations)
