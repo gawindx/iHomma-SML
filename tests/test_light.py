@@ -83,7 +83,16 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     _LOGGER.debug("- Attendu: '%s'", expected_unique_id)
     _LOGGER.debug("- Obtenu: '%s'", entity.unique_id)
     _LOGGER.debug("- Comparaison: %s", str(entity.unique_id) == str(expected_unique_id))
-    assert str(entity.unique_id) == str(expected_unique_id)
+    # Nouvelle façon de tester avec plus de détails
+    actual_id = str(entity.unique_id).strip()
+    expected_id = str(expected_unique_id).strip()
+    _LOGGER.debug("Comparaison détaillée:")
+    _LOGGER.debug("- Longueur actual: %d", len(actual_id))
+    _LOGGER.debug("- Longueur expected: %d", len(expected_id))
+    _LOGGER.debug("- Représentation actual: %r", actual_id)
+    _LOGGER.debug("- Représentation expected: %r", expected_id)
+    
+    assert actual_id == expected_id, f"IDs ne correspondent pas: '{actual_id}' != '{expected_id}'"
 
     # Test des attributs de base
     _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity.name, entity.device_ip)
