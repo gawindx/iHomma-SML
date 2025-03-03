@@ -2,17 +2,31 @@
 import pytest
 import socket
 import asyncio
+import logging
 from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from unittest.mock import patch, MagicMock, Mock
 
+# Configuration du logger pour les tests
+logging.basicConfig(level=logging.DEBUG)
+_LOGGER = logging.getLogger(__name__)
+
 @pytest.fixture
 async def hass(tmp_path) -> HomeAssistant:
     """Fixture pour créer une instance de HomeAssistant pour les tests."""
-    hass = HomeAssistant(str(tmp_path))
-    await hass.async_start()
-    return hass
+    _LOGGER.debug("Création du fixture hass avec tmp_path: %s", tmp_path)
+    try:
+        hass = HomeAssistant(str(tmp_path))
+        _LOGGER.debug("Instance HomeAssistant créée")
+        await hass.async_start()
+        _LOGGER.debug("HomeAssistant démarré avec succès")
+        yield hass
+        _LOGGER.debug("Nettoyage de l'instance HomeAssistant")
+        await hass.async_stop()
+    except Exception as e:
+        _LOGGER.error("Erreur dans le fixture hass: %s", str(e))
+        raise
 
 @pytest.fixture(autouse=True)
 def mock_socket_module(monkeypatch):
@@ -60,7 +74,6 @@ def mock_socket_module(monkeypatch):
         # Ajout du support du context manager
         def __enter__(self):
             return self
-            
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.close()
             return False

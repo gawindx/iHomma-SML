@@ -44,33 +44,45 @@ def light_entity(hass):
 @pytest.mark.asyncio
 async def test_light_entity_initialization(hass, mock_socket_module):
     """Test l'initialisation d'une entité light."""
-    _LOGGER.debug("Démarrage du test d'initialisation de l'entité")
+    _LOGGER.debug("=== Démarrage du test d'initialisation de l'entité ===")
     
-    # Vérifier que hass est bien configuré
-    _LOGGER.debug("Configuration de Home Assistant: %s", hass)
+    # Vérification du fixture hass
+    _LOGGER.debug("Vérification de l'instance hass:")
+    _LOGGER.debug("- Type: %s", type(hass))
+    _LOGGER.debug("- État: %s", hass.state)
+    _LOGGER.debug("- Configuration: %s", getattr(hass, 'config', None))
     
+    # Préparation des données
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
-    _LOGGER.debug("Configuration de l'entité: %s", entry_infos)
+    _LOGGER.debug("Données d'entrée: %s", entry_infos)
     
+    # Vérification du mock socket
+    _LOGGER.debug("État du mock_socket_module:")
+    _LOGGER.debug("- Type: %s", type(mock_socket_module))
+    _LOGGER.debug("- Méthodes disponibles: %s", dir(mock_socket_module))
+    
+    # Création de l'entité avec gestion d'erreur détaillée
     try:
         entity = iHommaSML_Entity(hass, entry_infos)
         _LOGGER.debug("Entité créée avec succès")
     except Exception as e:
-        _LOGGER.error("Erreur lors de la création de l'entité: %s", str(e))
+        _LOGGER.error("Erreur détaillée lors de la création:")
+        _LOGGER.error("- Type d'erreur: %s", type(e))
+        _LOGGER.error("- Message: %s", str(e))
+        _LOGGER.error("- Arguments: %s", e.args)
         raise
+
+    # Suite des tests avec plus de détails...
+    _LOGGER.debug("=== Tests des attributs ===")
     
-    # Test de l'unique_id
-    try:
-        expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
-        actual_unique_id = entity.unique_id
-        _LOGGER.debug("ID unique - Attendu: %s, Obtenu: %s", expected_unique_id, actual_unique_id)
-        assert actual_unique_id == expected_unique_id
-    except AssertionError:
-        _LOGGER.error("L'ID unique ne correspond pas")
-        raise
+    expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
+    _LOGGER.debug("Test de l'unique_id:")
+    _LOGGER.debug("- Attendu: %s", expected_unique_id)
+    _LOGGER.debug("- Obtenu: %s", entity.unique_id)
+    assert entity.unique_id == expected_unique_id
 
     # Test des attributs de base
     _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity.name, entity.device_ip)
