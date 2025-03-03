@@ -51,7 +51,7 @@ def mock_socket_module(monkeypatch):
             pass
             
         def close(self):
-            pass
+            self.connected = False
             
         def fileno(self):
             """Méthode requise pour les tests asyncio."""
