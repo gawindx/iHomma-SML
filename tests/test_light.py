@@ -82,6 +82,7 @@ async def test_light_entity_initialization(hass, mock_socket_module):
     _LOGGER.debug("Test de l'unique_id:")
     _LOGGER.debug("- Attendu: '%s'", expected_unique_id)
     _LOGGER.debug("- Obtenu: '%s'", entity.unique_id)
+    _LOGGER.debug("- Comparaison: %s", str(entity.unique_id) == str(expected_unique_id))
     assert str(entity.unique_id) == str(expected_unique_id)
 
     # Test des attributs de base
