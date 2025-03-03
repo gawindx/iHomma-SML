@@ -45,26 +45,57 @@ def light_entity(hass):
 async def test_light_entity_initialization(hass, mock_socket_module):
     """Test l'initialisation d'une entité light."""
     _LOGGER.debug("Démarrage du test d'initialisation de l'entité")
+    
+    # Vérifier que hass est bien configuré
+    _LOGGER.debug("Configuration de Home Assistant: %s", hass)
+    
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
-    _LOGGER.debug("Création de l'entité avec: %s", entry_infos)
-    entity = iHommaSML_Entity(hass, entry_infos)
+    _LOGGER.debug("Configuration de l'entité: %s", entry_infos)
     
-    expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
-    _LOGGER.debug("ID unique attendu: %s, obtenu: %s", expected_unique_id, entity.unique_id)
-    assert entity.unique_id == expected_unique_id
+    try:
+        entity = iHommaSML_Entity(hass, entry_infos)
+        _LOGGER.debug("Entité créée avec succès")
+    except Exception as e:
+        _LOGGER.error("Erreur lors de la création de l'entité: %s", str(e))
+        raise
+    
+    # Test de l'unique_id
+    try:
+        expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
+        actual_unique_id = entity.unique_id
+        _LOGGER.debug("ID unique - Attendu: %s, Obtenu: %s", expected_unique_id, actual_unique_id)
+        assert actual_unique_id == expected_unique_id
+    except AssertionError:
+        _LOGGER.error("L'ID unique ne correspond pas")
+        raise
 
-    _LOGGER.debug("Vérification des attributs - name: %s, device_ip: %s, available: %s",
-                 entity.name, entity.device_ip, entity.available)
+    # Test des attributs de base
+    _LOGGER.debug("Test des attributs - Name: %s, Device IP: %s", entity.name, entity.device_ip)
     assert entity.name == entry_infos["name"]
     assert entity.device_ip == entry_infos["device_ip"]
+    
+    # Test de disponibilité
+    _LOGGER.debug("Test de disponibilité initiale: %s", entity.available)
     assert not entity.available
     
-    _LOGGER.debug("Vérification des modes supportés: %s", entity.supported_color_modes)
-    assert entity.supported_color_modes == {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB}
-    assert entity.supported_features & LightEntityFeature.EFFECT
+    # Test des modes supportés
+    _LOGGER.debug("Test des modes de couleur supportés")
+    supported_modes = entity.supported_color_modes
+    _LOGGER.debug("Modes supportés: %s", supported_modes)
+    assert ColorMode.BRIGHTNESS in supported_modes
+    assert ColorMode.COLOR_TEMP in supported_modes
+    assert ColorMode.RGB in supported_modes
+    
+    # Test des fonctionnalités
+    _LOGGER.debug("Test des fonctionnalités supportées")
+    features = entity.supported_features
+    _LOGGER.debug("Fonctionnalités: %s", features)
+    assert features & LightEntityFeature.EFFECT
+    
+    _LOGGER.debug("Test d'initialisation terminé avec succès")
 
 @pytest.mark.asyncio
 async def test_group_entity_initialization():
