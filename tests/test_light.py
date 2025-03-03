@@ -131,12 +131,21 @@ async def test_light_state_restoration(hass, mock_socket_module):
     """Test light state restoration."""
     _LOGGER.debug("=== Démarrage du test de restauration d'état ===")
     
+    # Configuration initiale
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
     
-    # Simuler un état précédent dans Home Assistant
+    # Mock des traductions
+    translations = {
+        "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
+        "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light",
+        "component.ihomma_sml.entity.light.effect.state.morning_light": "Morning light",
+        "component.ihomma_sml.entity.light.effect.state.nature_light": "Nature light"
+    }
+    
+    # Mock de l'état précédent
     mock_restored_state = Mock()
     mock_restored_state.attributes = {
         "brightness": 128,
@@ -146,11 +155,18 @@ async def test_light_state_restoration(hass, mock_socket_module):
     }
     mock_restored_state.state = STATE_ON
     
-    # Patch de la méthode de restauration
+    # Configuration des mocks
     with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state',
-              return_value=mock_restored_state):
+              return_value=mock_restored_state), \
+         patch('homeassistant.helpers.translation.async_get_translations',
+              return_value=translations):
         
         _LOGGER.debug("État restauré simulé: %s", mock_restored_state.attributes)
+        _LOGGER.debug("Traductions simulées: %s", translations)
+        
+        # Configuration de hass
+        hass.config = Mock()
+        hass.config.language = "en"
         
         entity = iHommaSML_Entity(hass, entry_infos)
         entity.hass = hass
