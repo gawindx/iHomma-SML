@@ -1,10 +1,15 @@
 """Tests for iHomma SmartLight entities."""
 import pytest
+import logging
 from unittest.mock import Mock, patch
 from homeassistant.const import STATE_ON, STATE_OFF, STATE_UNAVAILABLE
 from homeassistant.components.light import ColorMode, ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ATTR_RGB_COLOR, LightEntityFeature
 from custom_components.ihomma_sml.light import iHommaSML_Entity, iHommaSML_GroupEntity
 from homeassistant.core import HomeAssistant
+
+# Configuration des logs pour les tests
+logging.basicConfig(level=logging.DEBUG)
+_LOGGER = logging.getLogger(__name__)
 
 @pytest.fixture
 def mock_socket(monkeypatch):
@@ -39,22 +44,25 @@ def light_entity(hass):
 @pytest.mark.asyncio
 async def test_light_entity_initialization(hass, mock_socket_module):
     """Test l'initialisation d'une entité light."""
+    _LOGGER.debug("Démarrage du test d'initialisation de l'entité")
     entry_infos = {
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
+    _LOGGER.debug("Création de l'entité avec: %s", entry_infos)
     entity = iHommaSML_Entity(hass, entry_infos)
     
-    # Vérification de l'identifiant unique
     expected_unique_id = f"ihomma_sml_{entry_infos['device_ip'].replace('.', '_')}"
+    _LOGGER.debug("ID unique attendu: %s, obtenu: %s", expected_unique_id, entity.unique_id)
     assert entity.unique_id == expected_unique_id
-    
-    # Vérification des autres attributs
+
+    _LOGGER.debug("Vérification des attributs - name: %s, device_ip: %s, available: %s",
+                 entity.name, entity.device_ip, entity.available)
     assert entity.name == entry_infos["name"]
     assert entity.device_ip == entry_infos["device_ip"]
     assert not entity.available
     
-    # Vérification des capacités
+    _LOGGER.debug("Vérification des modes supportés: %s", entity.supported_color_modes)
     assert entity.supported_color_modes == {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB}
     assert entity.supported_features & LightEntityFeature.EFFECT
 
@@ -104,29 +112,31 @@ async def test_light_state_restoration(hass, mock_socket_module):
 @pytest.mark.asyncio
 async def test_light_turn_on(hass, mock_socket_module):
     """Test light turn on."""
-    entry_infos = {
-        "name": "Test Light",
-        "device_ip": "192.168.1.100"
-    }
+    _LOGGER.debug("Démarrage du test d'allumage")
+    entry_infos = {"name": "Test Light", "device_ip": "192.168.1.100"}
     entity = iHommaSML_Entity(hass, entry_infos)
     
-    # Simulation de la disponibilité
+    _LOGGER.debug("Configuration de la disponibilité")
     entity._attr_available = True
     
-    # Test de l'allumage
+    _LOGGER.debug("Test de l'allumage simple")
     await entity.async_turn_on()
+    _LOGGER.debug("État après allumage: %s", entity.state)
     assert entity.state == STATE_ON
     
-    # Test avec luminosité
+    _LOGGER.debug("Test avec luminosité")
     await entity.async_turn_on(brightness=128)
+    _LOGGER.debug("Luminosité après réglage: %s", entity.brightness)
     assert entity.brightness == 128
     
-    # Test avec température de couleur
+    _LOGGER.debug("Test avec température de couleur")
     await entity.async_turn_on(color_temp_kelvin=4000)
+    _LOGGER.debug("Température après réglage: %s", entity.color_temp_kelvin)
     assert entity.color_temp_kelvin == 4000
     
-    # Test avec couleur RGB
+    _LOGGER.debug("Test avec couleur RGB")
     await entity.async_turn_on(rgb_color=(255, 0, 0))
+    _LOGGER.debug("Couleur RGB après réglage: %s", entity.rgb_color)
     assert entity.rgb_color == (255, 0, 0)
 
 @pytest.mark.asyncio
@@ -148,33 +158,35 @@ async def test_light_turn_off(hass, mock_socket_module):
 @pytest.mark.asyncio
 async def test_effect_translations(hass, mock_socket_module):
     """Test effect translations management."""
-    # Configure mock Home Assistant
+    _LOGGER.debug("Démarrage du test des traductions")
+    
+    _LOGGER.debug("Configuration du mock Home Assistant")
     hass.config = Mock()
     hass.config.language = "en"
     
-    # Mock translations
     translations = {
         "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
         "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light",
         "component.ihomma_sml.entity.light.effect.state.morning_light": "Morning light",
         "component.ihomma_sml.entity.light.effect.state.nature_light": "Nature light"
     }
+    _LOGGER.debug("Traductions configurées: %s", translations)
     
     with patch('homeassistant.helpers.translation.async_get_translations') as mock_trans:
         mock_trans.return_value = translations
         
+        _LOGGER.debug("Création de l'entité de test")
         entity = iHommaSML_Entity(hass, {
             "name": "Test Light", 
             "device_ip": "192.168.1.100"
         })
         
         await entity.async_added_to_hass()
+        _LOGGER.debug("Liste des effets après initialisation: %s", entity.effect_list)
         
-        # Verify translations
-        assert "Strong white" in entity.effect_list
-        assert "Candle light" in entity.effect_list
-        assert "Morning light" in entity.effect_list
-        assert "Nature light" in entity.effect_list
+        for effect in ["Strong white", "Candle light", "Morning light", "Nature light"]:
+            _LOGGER.debug("Vérification de l'effet: %s", effect)
+            assert effect in entity.effect_list
         
         # Verify fallback for untranslated effects
         assert len(entity.effect_list) > len(translations)
