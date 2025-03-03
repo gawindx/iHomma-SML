@@ -37,8 +37,8 @@ def test_device_unavailability(mock_socket_module):
     
     # Vérifier via get_state()
     state = device.get_state()
-    assert not state["available"]
-    assert not device.available
+    assert state["available"] is False
+    assert device.available is False
 
 def test_device_controls(mock_socket_module):
     """Test device controls (on/off, brightness, color, temp)."""
@@ -48,7 +48,7 @@ def test_device_controls(mock_socket_module):
     assert device.turn_on() is True
     assert device.is_on is True
     assert device.turn_off() is True
-    assert not device.is_on
+    assert device.is_on is False
     
     # Test Brightness
     assert device.set_brightness(255) is True
