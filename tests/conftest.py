@@ -24,13 +24,26 @@ def mock_socket_module(monkeypatch):
     class MockSocket:
         def __init__(self, *args, **kwargs):
             self.mock = mock
-        
+
+        def connect(self, address):
+            """Simulation de la connexion TCP."""
+            self.connected = True
+            return None
+
         def sendto(self, *args):
             return self.mock.sendto(*args)
         
         def recvfrom(self, *args):
             return self.mock.recvfrom(*args)
+
+        def send(self, data):
+            """Simulation d'envoi TCP."""
+            return len(data)
             
+        def recv(self, bufsize):
+            """Simulation de réception TCP."""
+            return b'\xfe\xef\x04\xa3\x01\x11J'  # Réponse simulée
+
         def setsockopt(self, *args, **kwargs):
             pass
             
