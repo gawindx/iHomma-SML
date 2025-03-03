@@ -43,6 +43,14 @@ def mock_socket_module(monkeypatch):
         def fileno(self):
             """Méthode requise pour les tests asyncio."""
             return 0
+            
+        # Ajout du support du context manager
+        def __enter__(self):
+            return self
+            
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.close()
+            return False
 
     monkeypatch.setattr("socket.socket", lambda *args, **kwargs: MockSocket())
     return mock
