@@ -39,18 +39,15 @@ def test_device_unavailability(mock_socket_module):
     device = iHommaSML_Device("192.168.1.100")
     
     # Mock de la réponse UDP pour simuler une erreur
-    def raise_error(*args):
-        _LOGGER.debug("Simulation d'une erreur de connexion")
-        raise Exception("Connection failed")
-    
-    _LOGGER.debug("Configuration du mock socket")
-    mock_socket_module.recvfrom = raise_error
+    mock_socket_module.recvfrom.side_effect = Exception("Connection failed")
+    _LOGGER.debug("Mock configuré pour lever une exception")
     
     # Vérifier via get_state()
     _LOGGER.debug("Appel de get_state()")
     state = device.get_state()
     _LOGGER.debug("État reçu: %s", state)
     
+    # Vérifications
     assert not state["available"]
     assert not device.available
     _LOGGER.debug("Test d'indisponibilité terminé avec succès")

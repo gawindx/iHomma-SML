@@ -17,21 +17,25 @@ async def hass(tmp_path) -> HomeAssistant:
 @pytest.fixture(autouse=True)
 def mock_socket_module(monkeypatch):
     """Mock global socket module."""
+    mock = Mock()
+    mock.sendto.return_value = 0
+    mock.recvfrom.return_value = (b"HLK_TEST", ("192.168.1.100", 988))
+
     class MockSocket:
         def __init__(self, *args, **kwargs):
-            pass
+            self.mock = mock
+        
+        def sendto(self, *args):
+            return self.mock.sendto(*args)
+        
+        def recvfrom(self, *args):
+            return self.mock.recvfrom(*args)
             
         def setsockopt(self, *args, **kwargs):
-            return None
+            pass
             
         def settimeout(self, *args, **kwargs):
-            return None
-            
-        def sendto(self, data, addr):
-            return len(data)
-            
-        def recvfrom(self, bufsize):
-            return b"HLK_TEST", ("192.168.1.100", 988)
+            pass
             
         def close(self):
             pass
@@ -40,11 +44,8 @@ def mock_socket_module(monkeypatch):
             """Méthode requise pour les tests asyncio."""
             return 0
 
-    # Remplacement du socket par notre mock
     monkeypatch.setattr("socket.socket", lambda *args, **kwargs: MockSocket())
-    
-    mock_socket = MockSocket()
-    return mock_socket
+    return mock
 
 @pytest.fixture
 def mock_light_entity():
