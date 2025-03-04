@@ -165,8 +165,8 @@ async def test_light_state_restoration(hass, mock_socket_module):
             # On contourne la gestion des traductions en définissant directement la liste des effets
             entity._attr_effect_list = ["Strong white", "Candle light"]
             
-            await entity.async_added_to_hass()
-            _LOGGER.debug("async_added_to_hass terminé")
+            #await entity.async_added_to_hass()
+            #_LOGGER.debug("async_added_to_hass terminé")
             
             _LOGGER.debug("=== Vérification des états ===")
             _LOGGER.debug("État actuel: %s", entity.state)
@@ -192,7 +192,7 @@ async def test_light_turn_on(hass, mock_socket_module):
     # Création et configuration de l'entité
     entity = iHommaSML_Entity(hass, entry_infos)
     entity.hass = hass  # S'assurer que hass est défini
-    await entity.async_added_to_hass()  # Important pour initialiser l'entité
+    #await entity.async_added_to_hass()  # Important pour initialiser l'entité
     
     _LOGGER.debug("Configuration de la disponibilité")
     entity._attr_available = True
@@ -255,7 +255,7 @@ async def test_effect_translations(hass, mock_socket_module):
             "device_ip": "192.168.1.100"
         })
         
-        await entity.async_added_to_hass()
+        #await entity.async_added_to_hass()
         _LOGGER.debug("Liste des effets après initialisation: %s", entity.effect_list)
         
         for effect in ["Strong white", "Candle light", "Morning light", "Nature light"]:
