@@ -168,17 +168,20 @@ async def test_light_state_restoration(hass, mock_socket_module):
             _LOGGER.debug("Création de l'entité")
             entity = iHommaSML_Entity(hass, entry_infos)
             entity.hass = hass
+            await entity.async_get_last_state()
 
-            # Définition de la disponibilité
+            """             # Définition de la disponibilité
             entity._attr_state = mock_restored_state.state
             entity._attr_available = True
-            for attr, value in mock_restored_state.attributes.items():
-                setattr(entity, f"_attr_{attr}", value)
+            entity._brightness = mock_restored_state.attributes["brightness"]
+            entity._attr_color_temp_kelvin = mock_restored_state.attributes["color_temp_kelvin"]
+            entity._attr_rgb_color = mock_restored_state.attributes["rgb_color"]
+            entity._attr_effect = mock_restored_state.attributes["effect"]
             _LOGGER.debug("Disponibilité définie à: %s", entity._attr_available)
 
             
             # On contourne la gestion des traductions en définissant directement la liste des effets
-            entity._attr_effect_list = ["Strong white", "Candle light"]
+            entity._attr_effect_list = ["Strong white", "Candle light"] """
             
             #await entity.async_added_to_hass()
             #_LOGGER.debug("async_added_to_hass terminé")
