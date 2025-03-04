@@ -135,26 +135,36 @@ async def test_light_state_restoration(hass, mock_socket_module):
         "name": "Test Light",
         "device_ip": "192.168.1.100"
     }
-    _LOGGER.debug("Configuration initiale: %s", entry_infos)
     
-    # Mock de l'état précédent
+    # Configuration de hass avec plus de détails
+    _LOGGER.debug("Configuration de hass")
+    hass.config = Mock()
+    hass.config.language = "en"
+    hass.states = Mock()
+    hass.states.async_set = Mock()
+    _LOGGER.debug("Configuration hass terminée: %s", vars(hass))
+    
+    # Mock de l'état précédent avec plus de logs
     mock_restored_state = Mock()
     mock_restored_state.state = STATE_ON
     mock_restored_state.attributes = {
         "brightness": 128,
         "color_temp_kelvin": 4000,
         "rgb_color": (255, 255, 255),
-        "effect": None
+        "effect": None,
+        "supported_features": LightEntityFeature.EFFECT,
+        "supported_color_modes": [ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB]
     }
-    _LOGGER.debug("État restauré simulé: %s", mock_restored_state.attributes)
+    _LOGGER.debug("État restauré simulé complet: %s", mock_restored_state.attributes)
     
-    # Configuration des mocks et hass
     async def mock_async_get_last_state():
         _LOGGER.debug("Mock async_get_last_state appelé")
+        _LOGGER.debug("Retournant l'état: %s avec attributs: %s", 
+                     mock_restored_state.state, mock_restored_state.attributes)
         return mock_restored_state
     
     async def mock_async_get_translations(*args, **kwargs):
-        _LOGGER.debug("Mock async_get_translations appelé avec: %s, %s", args, kwargs)
+        _LOGGER.debug("Mock async_get_translations appelé")
         translations = {
             "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
             "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light"
@@ -162,35 +172,42 @@ async def test_light_state_restoration(hass, mock_socket_module):
         _LOGGER.debug("Retour des traductions: %s", translations)
         return translations
     
-    # Configuration de hass
-    _LOGGER.debug("Configuration de hass")
-    hass.config = Mock()
-    hass.config.language = "en"
-    
-    # Patch et test
+    # Patch avec plus de contexte
+    _LOGGER.debug("Application des patches")
     with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state', 
               new=mock_async_get_last_state), \
          patch('homeassistant.helpers.translation.async_get_translations',
               side_effect=mock_async_get_translations):
         
-        _LOGGER.debug("Création de l'entité")
-        entity = iHommaSML_Entity(hass, entry_infos)
-        entity.hass = hass
-        
-        _LOGGER.debug("Déclenchement de async_added_to_hass")
-        await entity.async_added_to_hass()
-        
-        _LOGGER.debug("=== Vérification des états ===")
-        _LOGGER.debug("État actuel: %s", entity.state)
-        _LOGGER.debug("Luminosité: %s", getattr(entity, '_attr_brightness', None))
-        _LOGGER.debug("Température: %s", getattr(entity, '_attr_color_temp_kelvin', None))
-        
-        # Vérifications avec plus de contexte
-        assert entity.state == STATE_ON, f"État incorrect: {entity.state} != {STATE_ON}"
-        assert entity.brightness == 128, f"Luminosité incorrecte: {entity.brightness} != 128"
-        assert entity.color_temp_kelvin == 4000, f"Température incorrecte: {entity.color_temp_kelvin} != 4000"
-        
-        _LOGGER.debug("Test de restauration terminé avec succès")
+        try:
+            _LOGGER.debug("Création de l'entité")
+            entity = iHommaSML_Entity(hass, entry_infos)
+            entity.hass = hass
+            _LOGGER.debug("Entité créée: %s", vars(entity))
+            
+            _LOGGER.debug("Déclenchement de async_added_to_hass")
+            await entity.async_added_to_hass()
+            _LOGGER.debug("async_added_to_hass terminé")
+            
+            _LOGGER.debug("=== Vérification des états ===")
+            _LOGGER.debug("État actuel: %s", entity.state)
+            _LOGGER.debug("Attributs actuels: %s", entity.capability_attributes)
+            _LOGGER.debug("Luminosité: %s", getattr(entity, '_attr_brightness', None))
+            _LOGGER.debug("Température: %s", getattr(entity, '_attr_color_temp_kelvin', None))
+            
+            # Vérifications
+            assert entity.state == STATE_ON, f"État incorrect: {entity.state} != {STATE_ON}"
+            assert entity.brightness == 128, f"Luminosité incorrecte: {entity.brightness} != 128"
+            assert entity.color_temp_kelvin == 4000
+            
+            _LOGGER.debug("Test de restauration terminé avec succès")
+            
+        except Exception as e:
+            _LOGGER.error("Erreur pendant le test:")
+            _LOGGER.error("Type: %s", type(e))
+            _LOGGER.error("Message: %s", str(e))
+            _LOGGER.error("État de l'entité: %s", vars(entity) if 'entity' in locals() else None)
+            raise
 
 @pytest.mark.asyncio
 async def test_light_turn_on(hass, mock_socket_module):
