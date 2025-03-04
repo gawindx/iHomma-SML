@@ -182,7 +182,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
             
             _LOGGER.debug("=== Vérification des états ===")
             _LOGGER.debug("État actuel: %s", entity._attr_state)
-            assert entity._attr_state == STATE_ON
+            assert entity.state == STATE_ON
             assert entity.brightness == 128
             assert entity.color_temp_kelvin == 4000
             
