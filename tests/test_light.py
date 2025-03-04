@@ -145,7 +145,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
     
     # Mock de l'état précédent
     mock_restored_state = Mock()
-    mock_restored_state.state = STATE_ON
+    mock_restored_state._attr_state = STATE_ON
     mock_restored_state.attributes = {
         "brightness": 128,
         "color_temp_kelvin": 4000,
@@ -169,8 +169,8 @@ async def test_light_state_restoration(hass, mock_socket_module):
             #_LOGGER.debug("async_added_to_hass terminé")
             
             _LOGGER.debug("=== Vérification des états ===")
-            _LOGGER.debug("État actuel: %s", entity.state)
-            assert entity.state == STATE_ON
+            _LOGGER.debug("État actuel: %s", entity._attr_state)
+            assert entity._attr_state == STATE_ON
             assert entity.brightness == 128
             assert entity.color_temp_kelvin == 4000
             
