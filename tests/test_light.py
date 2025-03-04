@@ -163,14 +163,28 @@ async def test_light_state_restoration(hass, mock_socket_module):
                      mock_restored_state.state, mock_restored_state.attributes)
         return mock_restored_state
     
-    async def mock_async_get_translations(*args, **kwargs):
-        _LOGGER.debug("Mock async_get_translations appelé")
-        translations = {
-            "component.ihomma_sml.entity.light.effect.state.strong_white": "Strong white",
-            "component.ihomma_sml.entity.light.effect.state.candlelight": "Candle light"
+async def mock_async_get_translations(*args, **kwargs):
+    _LOGGER.debug("Mock async_get_translations appelé avec args=%s, kwargs=%s", args, kwargs)
+    translations = {
+        "integrations": {
+            "ihomma_sml": {
+                "entity": {
+                    "light": {
+                        "effect": {
+                            "state": {
+                                "strong_white": "Strong white",
+                                "candlelight": "Candle light",
+                                "morning_light": "Morning light",
+                                "nature_light": "Nature light"
+                            }
+                        }
+                    }
+                }
+            }
         }
-        _LOGGER.debug("Retour des traductions: %s", translations)
-        return translations
+    }
+    _LOGGER.debug("Retour des traductions: %s", translations)
+    return translations
     
     # Patch avec plus de contexte
     _LOGGER.debug("Application des patches")
