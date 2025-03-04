@@ -170,18 +170,22 @@ async def test_light_state_restoration(hass, mock_socket_module):
             entity.hass = hass
 
             # Définition de la disponibilité
+            entity._attr_state = mock_restored_state.state
             entity._attr_available = True
+            for attr, value in mock_restored_state.attributes.items():
+                setattr(entity, f"_attr_{attr}", value)
             _LOGGER.debug("Disponibilité définie à: %s", entity._attr_available)
 
             
             # On contourne la gestion des traductions en définissant directement la liste des effets
             entity._attr_effect_list = ["Strong white", "Candle light"]
             
-            await entity.async_added_to_hass()
+            #await entity.async_added_to_hass()
             #_LOGGER.debug("async_added_to_hass terminé")
             
             _LOGGER.debug("=== Vérification des états ===")
-            _LOGGER.debug("État actuel: %s", entity._attr_state)
+            _LOGGER.debug("État actuel: %s", entity.state)
+            _LOGGER.debug("État attendu: %s", mock_restored_state.state)
             assert entity.state == STATE_ON
             assert entity.brightness == 128
             assert entity.color_temp_kelvin == 4000
