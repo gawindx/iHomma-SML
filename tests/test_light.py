@@ -157,7 +157,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
     }
     _LOGGER.debug("État restauré simulé complet: %s", mock_restored_state.attributes)
     
-    async def mock_async_get_last_state():
+    async def mock_async_get_last_state(_):
         _LOGGER.debug("Mock async_get_last_state appelé")
         _LOGGER.debug("Retournant l'état: %s avec attributs: %s", 
                      mock_restored_state.state, mock_restored_state.attributes)
