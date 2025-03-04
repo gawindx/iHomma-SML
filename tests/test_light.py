@@ -177,7 +177,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
             # On contourne la gestion des traductions en définissant directement la liste des effets
             entity._attr_effect_list = ["Strong white", "Candle light"]
             
-            #await entity.async_added_to_hass()
+            await entity.async_added_to_hass()
             #_LOGGER.debug("async_added_to_hass terminé")
             
             _LOGGER.debug("=== Vérification des états ===")
