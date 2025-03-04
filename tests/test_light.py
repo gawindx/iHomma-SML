@@ -142,85 +142,61 @@ async def test_light_state_restoration(hass, mock_socket_module):
     hass.config.language = "en"
     hass.states = Mock()
     hass.states.async_set = Mock()
-    _LOGGER.debug("Configuration hass terminée: %s", vars(hass))
     
-    # Mock de l'état précédent avec plus de logs
+    # Mock de l'état précédent
     mock_restored_state = Mock()
     mock_restored_state.state = STATE_ON
     mock_restored_state.attributes = {
         "brightness": 128,
         "color_temp_kelvin": 4000,
         "rgb_color": (255, 255, 255),
-        "effect": None,
-        "supported_features": LightEntityFeature.EFFECT,
-        "supported_color_modes": [ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB]
+        "effect": None
     }
-    _LOGGER.debug("État restauré simulé complet: %s", mock_restored_state.attributes)
     
-    async def mock_async_get_last_state(_):
-        _LOGGER.debug("Mock async_get_last_state appelé")
-        _LOGGER.debug("Retournant l'état: %s avec attributs: %s", 
-                     mock_restored_state.state, mock_restored_state.attributes)
-        return mock_restored_state
-    
-    async def mock_async_get_translations(*args, **kwargs):
-        _LOGGER.debug("Mock async_get_translations appelé avec args=%s, kwargs=%s", args, kwargs)
-        translations = {
-            "integrations": {
-                "ihomma_sml": {
-                    "entity": {
-                        "light": {
-                            "effect": {
-                                "state": {
-                                    "strong_white": "Strong white",
-                                    "candlelight": "Candle light",
-                                    "morning_light": "Morning light",
-                                    "nature_light": "Nature light"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _LOGGER.debug("Retour des traductions: %s", translations)
-        return translations
-    
-    # Patch avec plus de contexte
-    _LOGGER.debug("Application des patches")
+    # Configuration des mocks avec patch.object
     with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state', 
-              new=mock_async_get_last_state), \
-         patch('homeassistant.helpers.translation.async_get_translations',
-              side_effect=mock_async_get_translations):
+              return_value=mock_restored_state), \
+         patch('homeassistant.helpers.translation.async_get_translations', 
+              return_value={
+                  "component": {
+                      "ihomma_sml": {
+                          "entity": {
+                              "light": {
+                                  "effect": {
+                                      "state": {
+                                          "strong_white": "Strong white",
+                                          "candlelight": "Candle light"
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }) as mock_translations:
         
         try:
             _LOGGER.debug("Création de l'entité")
             entity = iHommaSML_Entity(hass, entry_infos)
             entity.hass = hass
-            _LOGGER.debug("Entité créée: %s", vars(entity))
             
-            _LOGGER.debug("Déclenchement de async_added_to_hass")
+            # Vérifier que le mock est appelé
+            _LOGGER.debug("Vérification de l'appel au mock des traductions")
+            assert not mock_translations.called, "Le mock n'a pas encore été appelé"
+            
             await entity.async_added_to_hass()
-            _LOGGER.debug("async_added_to_hass terminé")
+            
+            # Vérifier que le mock a été appelé après async_added_to_hass
+            assert mock_translations.called, "Le mock des traductions devrait avoir été appelé"
             
             _LOGGER.debug("=== Vérification des états ===")
-            _LOGGER.debug("État actuel: %s", entity.state)
-            _LOGGER.debug("Attributs actuels: %s", entity.capability_attributes)
-            _LOGGER.debug("Luminosité: %s", getattr(entity, '_attr_brightness', None))
-            _LOGGER.debug("Température: %s", getattr(entity, '_attr_color_temp_kelvin', None))
-            
-            # Vérifications
-            assert entity.state == STATE_ON, f"État incorrect: {entity.state} != {STATE_ON}"
-            assert entity.brightness == 128, f"Luminosité incorrecte: {entity.brightness} != 128"
+            assert entity.state == STATE_ON
+            assert entity.brightness == 128
             assert entity.color_temp_kelvin == 4000
-            
-            _LOGGER.debug("Test de restauration terminé avec succès")
             
         except Exception as e:
             _LOGGER.error("Erreur pendant le test:")
             _LOGGER.error("Type: %s", type(e))
             _LOGGER.error("Message: %s", str(e))
-            _LOGGER.error("État de l'entité: %s", vars(entity) if 'entity' in locals() else None)
             raise
 
 @pytest.mark.asyncio
