@@ -158,17 +158,21 @@ async def test_light_state_restoration(hass, mock_socket_module):
               return_value=mock_restored_state), \
          patch('homeassistant.helpers.translation.async_get_translations', 
               return_value={
-                "entity": {
-                    "light": {
-                        "effect": {
-                            "name": "Effect",
-                            "state": {
-                                "strong_white": "Strong white",
-                                "candlelight": "Candle light"
+                    "component": {
+                        "ihomma_sml": {
+                            "entity": {
+                                "light": {
+                                    "effect": {
+                                        "name": "Effect",
+                                        "state": {
+                                            "strong_white": "Strong white",
+                                            "candlelight": "Candle light"
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
               }) as mock_translations:
         
         try:
