@@ -158,7 +158,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
               return_value=mock_restored_state), \
          patch('homeassistant.helpers.translation.async_get_translations', 
               return_value={
-                  "component": {
+                  "integrations": {
                       "ihomma_sml": {
                           "entity": {
                               "light": {
@@ -184,11 +184,13 @@ async def test_light_state_restoration(hass, mock_socket_module):
             assert not mock_translations.called, "Le mock n'a pas encore été appelé"
             
             await entity.async_added_to_hass()
+            _LOGGER.debug("async_added_to_hass terminé")
             
             # Vérifier que le mock a été appelé après async_added_to_hass
             assert mock_translations.called, "Le mock des traductions devrait avoir été appelé"
             
             _LOGGER.debug("=== Vérification des états ===")
+            _LOGGER.debug("État actuel: %s", entity.state)
             assert entity.state == STATE_ON
             assert entity.brightness == 128
             assert entity.color_temp_kelvin == 4000
@@ -197,6 +199,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
             _LOGGER.error("Erreur pendant le test:")
             _LOGGER.error("Type: %s", type(e))
             _LOGGER.error("Message: %s", str(e))
+            _LOGGER.error("État de l'entité: %s", vars(entity) if 'entity' in locals() else None)
             raise
 
 @pytest.mark.asyncio
