@@ -145,13 +145,20 @@ async def test_light_state_restoration(hass, mock_socket_module):
     
     # Mock de l'état précédent
     mock_restored_state = Mock()
-    mock_restored_state._attr_state = STATE_ON
+    mock_restored_state.state = STATE_ON
     mock_restored_state.attributes = {
         "brightness": 128,
         "color_temp_kelvin": 4000,
         "rgb_color": (255, 255, 255),
-        "effect": None
+        "effect": None,
+        "supported_color_modes": [ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.RGB],
+        "supported_features": LightEntityFeature.EFFECT,
+        "color_mode": ColorMode.RGB
     }
+    _LOGGER.debug("État restauré simulé: %s", {
+        "state": mock_restored_state.state,
+        "attributes": mock_restored_state.attributes
+    })
     
     # Configuration du mock uniquement pour la restauration d'état
     with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state', 
