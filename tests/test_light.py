@@ -156,7 +156,7 @@ async def test_light_state_restoration(hass, mock_socket_module):
     # Configuration des mocks avec patch.object
     with patch('homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state', 
               return_value=mock_restored_state), \
-         patch('async_get_translations', 
+         patch('homeassistant.helpers.translation.async_get_translations', 
               return_value={
                     "component": {
                         "ihomma_sml": {
